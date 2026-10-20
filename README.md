@@ -65,7 +65,7 @@ See [installation and recovery](INSTALL.md) for configuration limits, OpenCode v
 
 Each destination must be new. `APPLY.md` explains how to merge the configuration fragment, add the instruction entry point, and install the workflow skill. The bundle contains the full engineering policy. Setup does not change existing client configuration. Keep Gortex configured as its own native MCP server and follow its active repository policy.
 
-The server command is `bearing mcp --repo /absolute/path/to/checkout`. It exposes seven tools:
+The server command is `bearing mcp --repo /absolute/path/to/checkout`. It exposes eight tools:
 
 | Tool | Purpose |
 | --- | --- |
@@ -75,9 +75,16 @@ The server command is `bearing mcp --repo /absolute/path/to/checkout`. It expose
 | `bearing_recall` | Search memory or retrieve exact saved document versions |
 | `bearing_checkpoint` | Save progress and document snapshots atomically |
 | `bearing_finish` | Check acceptance evidence and engineering self-review before completing |
+| `bearing_git` | Inspect Git state, manage branches/worktrees, and create conventional commits |
 | `bearing_rules` | Read the embedded engineering policy and workflow |
 
 Every tool publishes input and output schemas. MCP results contain either `result` or `error`, with matching structured content and text fallback. CLI `--json` returns the operation result directly, or an `error` envelope. Neither interface silently switches repositories.
+
+## Branches, worktrees, and conventional commits
+
+Use `bearing git --input git-request.json --json` or `bearing_git`. Inspect first, then supply the observed HEAD and branch when creating/switching a branch, creating a worktree, or committing. Commits also require the inspected staged tree and use only changes already staged by the host. Git hooks and signing remain active.
+
+A new worktree receives a consistent copy of saved tasks, memory, research, and specs. Future changes stay independent in each checkout. Checkpoint first, then resume the same task ID in the new worktree and reinstall its client settings. See [Git requests and recovery](GIT_WORKFLOW.md) for examples, dry runs, and conventional message rules.
 
 ## Research → spec → build
 
@@ -99,7 +106,7 @@ Finish requires passing acceptance evidence and the five self-review checks: sin
 ## Durable state and context
 
 - SQLite uses WAL, foreign keys, full synchronous writes, and bounded lock waits. Tasks, checkpoints, document snapshots, memory corrections, and request receipts use transactions.
-- Writes require request IDs; task and memory updates require current versions. Retry identical uncertain requests with the same ID. Use a new ID for a new action.
+- Task and memory writes require request IDs; updates require current versions. Retry identical uncertain database requests with the same ID. Use a new ID for a new action. Git writes use state preconditions instead; inspect after an uncertain Git result before retrying.
 - Memory is explicitly saved with a claim, source, basis, scope, and optional path/symbol anchors. Corrected and retracted claims remain auditable but leave normal recall.
 - Recall filters applicability before FTS5 ranking. Default memory recall returns at most five items within a 12,000-byte record budget. Resume is bounded to roughly 32,000 JSON bytes including full policy, with visible omissions.
 - These are byte budgets, not measured model token counts. No embedding service, transcript crawler, second code index, or background model loop is included.

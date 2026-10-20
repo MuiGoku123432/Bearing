@@ -28,9 +28,9 @@ Limits: 64 KiB for general mutation JSON; 16 KiB for checkpoint input; 16,000 by
 
 Resolve and normalize the Git working-tree root. Bare and non-Git directories are invalid; an unborn or detached HEAD is allowed. Absent HEAD/branch fields are omitted in JSON. CLI accepts `--repo`; MCP binds at startup and rejects per-call repository overrides.
 
-Runtime state lives at `.bearing/state.db`. Separate clones/worktrees do not share it automatically. Project scope means the current store's project, not a machine-wide memory pool. Branch changes retain this checkout's store. Explicit ref-based memory applicability is deferred.
+Runtime state lives at `.bearing/state.db`. Separate clones/worktrees do not share it automatically. The explicit Git worktree operation copies a consistent snapshot into the new checkout; later updates stay independent. Project scope means the current store's project, not a machine-wide memory pool. Branch changes retain this checkout's store. Explicit ref-based memory applicability is deferred.
 
-Capture the checkout path, HEAD, branch when known, dirty flag, and observation time. Known checkout/HEAD differences and dirty states require revalidation. A matching HEAD is not proof that uncommitted files are unchanged. Bearing reads only Git metadata and explicitly selected Markdown documents; source investigation remains in Gortex.
+Capture the checkout path, HEAD, branch when known, dirty flag, and observation time. Known checkout/HEAD differences and dirty states require revalidation. A matching HEAD is not proof that uncommitted files are unchanged. Bearing captures Git metadata and explicitly selected Markdown documents. Explicit Git operations can also change branches, create worktrees, and commit staged content; source investigation remains in Gortex.
 
 ## Tasks and immutable checkpoints
 
@@ -60,7 +60,7 @@ Normal recall filters active state and checkout applicability before lexical ran
 
 If active Gortex policy requires saving a fact there, save its Gortex reference in checkpoint evidence rather than maintaining a competing editable claim. Bearing does not validate the availability of a remote Gortex reference; the agent must check it.
 
-## Seven agent operations
+## Eight agent operations
 
 MCP names use the `bearing_` prefix. Both interfaces call the same domain operations.
 
@@ -72,11 +72,22 @@ MCP names use the `bearing_` prefix. Both interfaces call the same domain operat
 | `recall` | Query or memory IDs, or document IDs; optional anchors, limit, byte budget | Records, omissions, warnings, policy ID |
 | `checkpoint` | Request ID, task ID, expected version, summary, next action; optional state/evidence/documents/task update | Task/checkpoint/document IDs and new task version |
 | `finish` | Request ID, task ID, expected version, summary, acceptance results, verification, review; optional documents/limitations | Completed task and final checkpoint receipt |
+| `git` | Operation and its fields; expected HEAD/branch for writes; expected index tree for commits | Repository state, branches/worktrees, staged summary, operation result and warnings |
 | `rules` | No input | Complete engineering policy/workflow and identities |
 
 `remember.action` defaults to `save`. Supersede/retract require an existing ID, expected version, and reason. Document recall uses `document_ids` separately from memory query/IDs. Write receipts include request ID, affected ID/version, status, policy ID, and replay status, plus checkpoint/document IDs where relevant.
 
-MCP publishes precise input and output schemas. Tool success is `{result: ...}`; domain failure is `{error: ...}` with MCP `isError`. Structured output has a text fallback. The single typed SDK envelope is shared by all seven handlers to avoid duplicating schema and error logic. CLI JSON returns the result directly, or the same error envelope. Invalid protocol requests remain protocol/SDK validation errors.
+MCP publishes precise input and output schemas. Tool success is `{result: ...}`; domain failure is `{error: ...}` with MCP `isError`. Structured output has a text fallback. The single typed SDK envelope is shared by all eight handlers to avoid duplicating schema and error logic. CLI JSON returns the result directly, or the same error envelope. Invalid protocol requests remain protocol/SDK validation errors.
+
+## Git workflow
+
+`git.operation` is `inspect`, `branch`, `switch`, `worktree`, `check-commit`, or `commit`. See [GIT_WORKFLOW.md](GIT_WORKFLOW.md) for complete requests. Git requests are limited to 16 KiB and operations have a 60-second deadline. The repository remains bound to the store; environment variables that redirect Git's repository or index are rejected.
+
+Mutations require `expected_head` and `expected_branch` from inspection; detached HEAD uses the literal `HEAD`. An initial Git commit must exist. Branch creation/switching refuses a dirty checkout. Worktree creation can leave dirty files in the original checkout while copying saved Bearing state. Existing merge, rebase, cherry-pick, revert, and bisect operations block writes. `dry_run` checks the request without creating a branch, worktree, or commit; inspection may write Git tree objects.
+
+Commit requires `expected_index`, the `index_tree` returned by inspection. It uses only already-staged changes, refuses detached HEAD and empty staged changes, validates a Conventional Commits message, and honors Git hooks and signing configuration. The agent must review the staged diff and obtain any authorization required by the host. There is no automatic staging, pushing, deletion, reset, or stash.
+
+Git writes are external operations, not SQLite receipt transactions. They have no request ID/replay promise. Preconditions are checked before execution and results are checked afterward; `.bearing/git.lock` serializes Bearing callers but cannot lock out unrelated Git processes. After `outcome_unknown`, inspect the repository before deciding whether another write is needed. Never assume a timeout or hook error means nothing changed. A partially completed worktree operation reports warnings and a recovery backup when available; it does not remove an existing checkout. Checkpoint after reviewing the result.
 
 ## Supported completion
 
@@ -92,9 +103,9 @@ Tables are `store_meta`, `tasks`, `checkpoints`, `documents`, `memories`, `memor
 
 Use one connection per process, foreign keys, WAL, FULL synchronization, two-second lock waits, and five-second ordinary operation contexts. Connection-local settings are applied through the driver DSN on every connection. Schema initialization is transactional; newer schema versions are rejected before persistent journal settings change. The pinned build must use an SQLite release containing the required WAL fix.
 
-Every mutation and its receipt commit together. Receipt lookup precedes current-version validation and document reopening. Identical operation/input/request ID replays the original mutation result; different input under an existing ID conflicts. A new write with an old expected version conflicts and returns the current version. Captured timestamps, context, and generated IDs are outside the input digest. Read context attached to a replay may reflect current state.
+Every task and memory mutation and its receipt commit together in SQLite. Receipt lookup precedes current-version validation and document reopening. Identical operation/input/request ID replays the original mutation result; different input under an existing ID conflicts. A new write with an old expected version conflicts and returns the current version. Captured timestamps, context, and generated IDs are outside the input digest. Read context attached to a replay may reflect current state.
 
-Errors contain stable `code`, `message`, `retryable`, and optional request/current-version fields. Current codes include `invalid_input`, `not_initialized`, `not_found`, `conflict`, `busy`, `unsupported_schema`, `io_error`, and `outcome_unknown`. Incomplete completion evidence uses `invalid_input` with the failed requirement. Ambiguity returns candidates. Retry an uncertain commit with the same request ID; cancellation alone does not establish that nothing was saved.
+Errors contain stable `code`, `message`, `retryable`, and optional request/current-version fields. Current codes include `invalid_input`, `not_initialized`, `not_found`, `conflict`, `busy`, `unsupported_schema`, `io_error`, and `outcome_unknown`. Incomplete completion evidence uses `invalid_input` with the failed requirement. Ambiguity returns candidates. Retry an uncertain SQLite mutation with the same request ID; cancellation alone does not establish that nothing was saved. Git operations instead require inspection after an uncertain result.
 
 Export writes a consistent logical JSON snapshot of tasks, checkpoints, documents, and memories. Backup uses SQLite `VACUUM INTO` and includes receipts/indexes. Both require a new output file. Restore accepts a physical backup into a checkout without an existing database, validates a temporary copy, then publishes without replacement. It preserves original evidence context and scope. Logical import/merge is deferred.
 
@@ -113,6 +124,7 @@ bearing remember --input memory.json --json
 bearing recall --input query.json --json
 bearing checkpoint --input progress.json --json
 bearing finish --input result.json --json
+bearing git --input git-request.json --json
 bearing history [--before SEQUENCE] TASK_ID
 bearing mcp --repo /absolute/checkout
 bearing setup --host codex --repo /absolute/checkout --out /new/setup-directory
@@ -121,7 +133,7 @@ bearing backup --out /path/backup.db
 bearing restore --input /path/backup.db --repo /empty/checkout
 ```
 
-Put flags before positional IDs. JSON input rejects unknown fields, non-object input, and trailing JSON. `--input -` reads stdin. CLI can generate a missing request ID and prints it to stderr before writing; automation should supply and retain its own IDs. Exit codes: 0 success, 2 invalid input/missing state or record, 3 conflict, 4 busy/uncertain outcome, 1 other failures. MCP stdout is reserved for protocol traffic.
+Put flags before positional IDs. JSON input rejects unknown fields, non-object input, and trailing JSON. `--input -` reads stdin. For task and memory writes, CLI can generate a missing request ID and prints it to stderr before writing; automation should supply and retain its own IDs. Git requests use state preconditions instead of request IDs. Exit codes: 0 success, 2 invalid input/missing state or record, 3 conflict, 4 busy/uncertain outcome, 1 other failures. MCP stdout is reserved for protocol traffic.
 
 Rules/version/help work without state. Init creates only the state directory/database and missing ignore entry. Setup requires a Git checkout and writes a new directory with configuration/instruction fragments, a skill, canonical policy/workflow, and application instructions. It never overwrites existing client settings or configures/tracks Gortex automatically.
 

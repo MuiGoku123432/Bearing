@@ -8,7 +8,7 @@ import (
 )
 
 // The SDK needs concrete output types to publish and validate each tool's schema.
-// This envelope is used by all seven tools for consistent structured errors.
+// This envelope is used by all tools for consistent structured errors.
 type toolOutput[T any] struct {
 	Result *T             `json:"result,omitempty"`
 	Error  *bearing.Error `json:"error,omitempty"`
@@ -41,6 +41,10 @@ func newMCPServer(store *bearing.Store) *mcp.Server {
 	})
 	mcp.AddTool(server, &mcp.Tool{Name: "bearing_finish", Description: "Finish when every acceptance criterion has passing verification and review checks single_use, reuse, necessity, conventions, minimality pass. Research/spec tasks must save their final document. Evidence is agent-reported, not independently certified."}, func(ctx context.Context, req *mcp.CallToolRequest, in bearing.FinishInput) (*mcp.CallToolResult, toolOutput[bearing.Mutation], error) {
 		out, err := store.Finish(ctx, in)
+		return toolResult(out, err)
+	})
+	mcp.AddTool(server, &mcp.Tool{Name: "bearing_git", Description: "Inspect branches, worktrees and staged changes; create/switch a branch; create a worktree carrying saved Bearing state; check or create a conventional commit. Mutations require expected_head/expected_branch from inspect; commits also require expected_index and use only already-staged changes. Use dry_run to preview. Obtain user authorization for Git writes. No push, force, deletion, or automatic staging. Inspect after uncertain outcomes; checkpoint results with bearing_checkpoint."}, func(ctx context.Context, req *mcp.CallToolRequest, in bearing.GitInput) (*mcp.CallToolResult, toolOutput[bearing.GitResult], error) {
+		out, err := store.Git(ctx, in)
 		return toolResult(out, err)
 	})
 	mcp.AddTool(server, &mcp.Tool{Name: "bearing_rules", Description: "Read full built-in engineering standards and the research/spec/build workflow.", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true}}, func(ctx context.Context, req *mcp.CallToolRequest, in struct{}) (*mcp.CallToolResult, toolOutput[bearing.Policy], error) {

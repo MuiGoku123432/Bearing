@@ -24,6 +24,7 @@ const usage = `Bearing keeps coding work moving across sessions.
   bearing resume [--repo PATH] [TASK_ID]
   bearing recall --input FILE|- [--json]
   bearing status [--json]
+  bearing git --input FILE|- [--repo PATH] [--json]
   bearing history [--before SEQUENCE] TASK_ID [--json]
   bearing rules [--json]
   bearing setup --host codex|claude|opencode --out NEW_DIRECTORY
@@ -129,7 +130,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 		value = "Restored the saved store. Resume a task to review its checkout context."
 	default:
-		known := map[string]bool{"init": true, "mcp": true, "start": true, "resume": true, "status": true, "history": true, "recall": true, "remember": true, "checkpoint": true, "finish": true, "export": true, "backup": true}
+		known := map[string]bool{"init": true, "mcp": true, "git": true, "start": true, "resume": true, "status": true, "history": true, "recall": true, "remember": true, "checkpoint": true, "finish": true, "export": true, "backup": true}
 		if !known[command] {
 			return &bearing.Error{Code: "invalid_input", Message: "Unknown command. Run bearing help."}
 		}
@@ -196,6 +197,7 @@ func runInput(ctx context.Context, store *bearing.Store, command, path string, s
 	var finish bearing.FinishInput
 	var memory bearing.RememberInput
 	var recall bearing.RecallInput
+	var gitInput bearing.GitInput
 	var target any
 	var requestID *string
 	switch command {
@@ -209,6 +211,8 @@ func runInput(ctx context.Context, store *bearing.Store, command, path string, s
 		target, requestID = &memory, &memory.RequestID
 	case "recall":
 		target = &recall
+	case "git":
+		target = &gitInput
 	}
 	if err := bearing.DecodeInput(data, target); err != nil {
 		return nil, err
@@ -226,6 +230,8 @@ func runInput(ctx context.Context, store *bearing.Store, command, path string, s
 		return store.Finish(ctx, finish)
 	case "remember":
 		return store.Remember(ctx, memory)
+	case "git":
+		return store.Git(ctx, gitInput)
 	default:
 		return store.Recall(ctx, recall)
 	}

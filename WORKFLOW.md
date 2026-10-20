@@ -30,6 +30,12 @@ Checkpoint after meaningful progress, a changed approach, a blocker, or a handof
 
 Before finish, inspect the diff against all five engineering self-review items. Record one concise review summary and the outcomes. Every acceptance criterion needs supporting verification. An unresolved failure or finding means work remains. Do not claim independent certification from a submitted checklist.
 
+## Branches, worktrees, and commits
+
+Use `bearing_git` or `bearing git` when a task needs Git changes. Honor the user's branch/worktree choice and existing authorization. Inspect first; carry the returned HEAD, branch, and staged tree into write preconditions. Use `dry_run` when the proposed change needs review. A new branch needs a clean checkout. A worktree is useful for independent work; checkpoint research, specs, and progress before creating it so their saved versions carry over. Each worktree has its own Bearing store after the copy. Reinstall client settings for its path and use the active Gortex view for that checkout.
+
+Review the diff and stage only the intended files through the host's Git tools. Write a Conventional Commits message such as `feat: add task checkpoints`, then ask Bearing to commit the reviewed staged tree. Git hooks and signing still apply. Inspect after an uncertain result; do not blindly retry a Git write. Bearing does not push automatically. After a branch change or commit, revalidate task evidence against the current checkout/HEAD and checkpoint the result. Keep the engineering self-review and required tests in the normal build flow.
+
 ## Context and handoffs
 
 Resume in a fresh context to reload full policy and bounded task state. Expand selected memory or document IDs when needed. Code-dependent memories and dirty-state evidence need fresh Gortex validation. Never assume unchanged HEAD proves unchanged uncommitted work.

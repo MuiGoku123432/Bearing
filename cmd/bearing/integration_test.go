@@ -37,6 +37,18 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
+	for _, args := range [][]string{
+		{"config", "user.name", "Bearing Test"},
+		{"config", "user.email", "bearing@example.invalid"},
+		{"config", "core.hooksPath", os.DevNull},
+		{"config", "commit.gpgsign", "false"},
+		{"add", ".gitignore"},
+		{"commit", "-qm", "chore: initialize fixture"},
+	} {
+		if out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("Git fixture: %s %v", out, err)
+		}
+	}
 	cmd := exec.Command(os.Args[0], "-test.run=^TestMCPProcess$")
 	cmd.Env = append(os.Environ(), "BEARING_TEST_SERVER=1", "BEARING_TEST_REPO="+root)
 	var diagnostics bytes.Buffer
@@ -48,8 +60,52 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 	}
 	defer session.Close()
 	tools, err := session.ListTools(ctx, nil)
-	if err != nil || len(tools.Tools) != 7 {
+	if err != nil || len(tools.Tools) != 8 {
 		t.Fatalf("tools: %+v %v", tools, err)
+	}
+	gitResult, gitErr := session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "inspect"}})
+	if gitErr != nil || gitResult.IsError || !strings.Contains(gitResult.Content[0].(*mcp.TextContent).Text, "index_tree") {
+		t.Fatalf("Git inspect: %+v %v", gitResult, gitErr)
+	}
+	var gitEnvelope toolOutput[bearing.GitResult]
+	if err := json.Unmarshal([]byte(gitResult.Content[0].(*mcp.TextContent).Text), &gitEnvelope); err != nil || gitEnvelope.Result == nil {
+		t.Fatalf("Git inspect envelope: %+v %v", gitEnvelope, err)
+	}
+	observed := gitEnvelope.Result.Repository
+	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "branch", Branch: "feat/mcp", ExpectedHead: observed.Head, ExpectedBranch: observed.Branch}})
+	if gitErr != nil || gitResult.IsError {
+		t.Fatalf("MCP branch: %+v %v", gitResult, gitErr)
+	}
+	if err := os.WriteFile(filepath.Join(root, "feature.txt"), []byte("reviewed feature\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("git", "-C", root, "add", "feature.txt").CombinedOutput(); err != nil {
+		t.Fatalf("stage fixture: %s %v", out, err)
+	}
+	// Inspect through CLI, then use exactly that state through MCP.
+	var gitOutput, gitErrors bytes.Buffer
+	if err := run(ctx, []string{"git", "--repo", root, "--json", "--input", "-"}, strings.NewReader(`{"operation":"inspect"}`), &gitOutput, &gitErrors); err != nil {
+		t.Fatal(err)
+	}
+	var staged bearing.GitResult
+	if err := json.Unmarshal(gitOutput.Bytes(), &staged); err != nil || staged.Repository.Branch != "feat/mcp" || staged.IndexTree == "" {
+		t.Fatalf("CLI Git inspection: %+v %v", staged, err)
+	}
+	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "commit", Message: "feat: exercise the MCP workflow", ExpectedHead: staged.Repository.Head, ExpectedBranch: staged.Repository.Branch, ExpectedIndex: staged.IndexTree}})
+	if gitErr != nil || gitResult.IsError {
+		t.Fatalf("MCP commit: %+v %v", gitResult, gitErr)
+	}
+	actual, err := bearing.ResolveRepository(ctx, root)
+	if err != nil || actual.Head == observed.Head || actual.Branch != "feat/mcp" || actual.Dirty {
+		t.Fatalf("MCP commit state: %+v %v", actual, err)
+	}
+	gitOutput.Reset()
+	if err := run(ctx, []string{"git", "--repo", root, "--json", "--input", "-"}, strings.NewReader(`{"operation":"check-commit","message":"docs: explain Git support"}`), &gitOutput, &gitErrors); err != nil || !json.Valid(gitOutput.Bytes()) {
+		t.Fatalf("CLI message check: %s %v", gitOutput.String(), err)
+	}
+	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "check-commit", Message: "invalid message"}})
+	if gitErr != nil || !gitResult.IsError {
+		t.Fatalf("Git validation: %+v %v", gitResult, gitErr)
 	}
 	for _, tool := range tools.Tools {
 		if tool.InputSchema == nil || tool.OutputSchema == nil {

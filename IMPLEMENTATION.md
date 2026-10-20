@@ -2,7 +2,7 @@
 
 20 October 2026 · `0.1.0-dev` · macOS arm64
 
-Bearing now has a working local developer preview. The native executable, shared domain operations, durable state, research/spec documents, embedded engineering policy, seven MCP tools, setup bundles, and recovery commands are implemented. The complete release acceptance story still needs fresh model-driven sessions and comparative evaluation.
+Bearing now has a working local developer preview. The native executable, shared domain operations, durable state, research/spec documents, embedded engineering policy, eight MCP tools, setup bundles, and recovery commands are implemented. The complete release acceptance story still needs fresh model-driven sessions and comparative evaluation.
 
 ## Implemented
 
@@ -13,7 +13,8 @@ Bearing now has a working local developer preview. The native executable, shared
 - Attributed memory, project/checkout applicability, path/symbol anchors, FTS5 ranking, supersession/retraction, and bounded responses.
 - Completion checks for acceptance evidence, current known checkout/HEAD, and all five engineering review outcomes.
 - Exact embedded ENGINEERING.md, one maintained WORKFLOW.md, and host setup artifacts carrying those instructions.
-- Shared CLI/MCP operations; all seven MCP handlers have typed input/output schemas and structured errors with text fallback.
+- Shared CLI/MCP operations; all eight MCP handlers have typed input/output schemas and structured errors with text fallback.
+- Explicit Git branch creation/switching, worktree creation with saved-state copying, and staged-only conventional commits. CLI and MCP share precondition checks, dry runs, bounded output, and native hook/signing behavior; no dependencies or database schema were added.
 - Logical export, consistent physical backup, and restore into an empty destination.
 - Source installer `install.sh` and `bearing install`: user-local binary, per-project MCP settings and workflow skill, preview mode, backups, repeat-install checks, and error recovery. [INSTALL.md](INSTALL.md) documents supported formats and manual-merge cases.
 
@@ -26,14 +27,16 @@ There is no model runtime, Gortex proxy, second source index, ORM, CLI framework
 | `CGO_ENABLED=0 go build -o bin/bearing ./cmd/bearing` | Pass |
 | `go test ./...` | Pass during implementation |
 | `go test -race ./...` | Pass after production changes |
-| Expanded real-stdio test of all seven MCP handlers under `-race` | Pass |
+| Expanded real-stdio test of all eight MCP handlers under `-race` | Pass |
 | `go vet ./...` | Pass |
 | `git diff --check` | Pass |
 | Repository initialization and binary version report | SQLite 3.53.4; embedded policy/workflow hashes returned |
 
-Ten test files cover restart recovery, retry digest conflicts, same-request replay, separate-connection and separate-process writers, bounded SQLite contention, failure injection with full rollback, SQLite-full simulation with a page limit, corrupt JSON relationship rejection, document digest verification on restore, missing documents on retry, task requirement history, completion rejection, scope filtering, literal FTS queries, response budgets, Unicode, document lineage, path boundaries, worktree isolation, backup/restore, and CLI error/setup behavior. Installer tests cover all three clients (including both OpenCode layouts), dry runs, existing settings and instruction preservation, custom environment/timeouts, backup contents, permissions, repeated installs, paths with spaces, malformed and duplicate-key JSON, conflicting formats, custom skills, symlink refusal, and rollback/retry after a forced skill-directory write failure.
+Twelve test files cover restart recovery, retry digest conflicts, same-request replay, separate-connection and separate-process writers, bounded SQLite contention, failure injection with full rollback, SQLite-full simulation with a page limit, corrupt JSON relationship rejection, document digest verification on restore, missing documents on retry, task requirement history, completion rejection, scope filtering, literal FTS queries, response budgets, Unicode, document lineage, path boundaries, worktree isolation, backup/restore, and CLI error/setup behavior. Installer tests cover all three clients (including both OpenCode layouts), dry runs, existing settings and instruction preservation, custom environment/timeouts, backup contents, permissions, repeated installs, paths with spaces, malformed and duplicate-key JSON, conflicting formats, custom skills, symlink refusal, and rollback/retry after a forced skill-directory write failure.
 
-The MCP integration test launches a separate server process. It lists the seven schemas, exercises every handler, passes task state between MCP and CLI, checks cross-interface receipt replay, and rejects a per-call repository override. This is a protocol and persistence test, not a model behavior evaluation.
+The MCP integration test launches a separate server process. It lists the eight schemas, exercises every handler, creates a real Git branch and staged conventional commit, passes inspected Git and task state between MCP and CLI, checks cross-interface receipt replay, and rejects a per-call repository override. This is a protocol and persistence test, not a model behavior evaluation.
+
+Git tests cover stale HEAD/branch/index rejection, dry runs, dirty checkout protection, staged-only commits, native hook rejection, message validation, redirected-environment refusal, occupied/nested worktree destinations, and saved research/spec lineage across worktrees. They verify that later task versions and checkout-scoped memory remain independent. External Git writers can still race preflight checks; uncertain/partial outcomes require inspection as documented in [GIT_WORKFLOW.md](GIT_WORKFLOW.md).
 
 ## Consumer checks
 
@@ -51,7 +54,7 @@ The ready-to-review setup bundles for this checkout are under `.bearing/setup/co
 
 ## Installer verification
 
-The source bootstrap was run into a temporary bin directory and Git checkout whose paths contain spaces. It built and launched the CGo-free executable, initialized state, and installed all three project integrations. A second run left the binary and client files unchanged. The installed binary completed an MCP handshake and exposed seven tools. OpenCode 1.18.33 connected through the installed project configuration; Claude Code found the installed server and requested its normal project approval. Existing team instructions were retained and backed up.
+The source bootstrap was run into a temporary bin directory and Git checkout whose paths contain spaces. It built and launched the CGo-free executable, initialized state, and installed all three project integrations. A second run left the binary and client files unchanged. At the installer checkpoint, the installed binary completed an MCP handshake and exposed the then-current seven tools. The current source adds `bearing_git` as the eighth tool; its transport is covered by the expanded integration test. OpenCode 1.18.33 connected through the installed project configuration; Claude Code found the installed server and requested its normal project approval. Existing team instructions were retained and backed up.
 
 Codex project discovery could not be verified in this sandbox: the CLI's `mcp get` did not read the project entry, and its app-server reported that persisted project trust is required. The generated launch format was previously parsed through command-line overrides. Users must open and trust their project, then check `/mcp`; no live Codex connection is claimed by this installer check. OpenCode V2 has format/merge tests, but no installed V2 runtime test. No model runs or global configuration changes were made.
 
@@ -65,7 +68,7 @@ Gortex reported no Go LSP provider for formatting; Go's standard formatter was u
 
 Self-review against ENGINEERING.md:
 
-1. Single-use logic stays in its owning file. The one MCP response envelope is needed by seven typed SDK handlers; it is not a general abstraction layer.
+1. Single-use logic stays in its owning file. The one MCP response envelope is needed by eight typed SDK handlers; it is not a general abstraction layer.
 2. CLI and MCP share one implementation of each operation. Gortex reuse queries found no prior application implementation; policy, repository resolution, receipt handling, and shared SQL reads are reused.
 3. No speculative plugin, manager, provider, ORM, or orchestration layer was introduced.
 4. Modules follow the root-package/executable layout and stay under the 300-line guideline after formatting. Tests remain adjacent to the behavior they exercise.
@@ -78,4 +81,4 @@ Self-review against ENGINEERING.md:
 - Complete the remaining storage fault matrix before release, including interruption at commit, actual filesystem I/O exhaustion beyond the tested SQLite-full simulation, and connection replacement. Current tests cover specific failure modes, not every item in the research matrix.
 - Keep supported-platform claims limited to macOS arm64 until other platforms are built and run.
 
-The live-agent pilot is execution work, not more product planning. The current binary and setup material make those runs concrete. The repository has not been committed, pushed, or released by this implementation task.
+The live-agent pilot is execution work, not more product planning. The current binary and setup material make those runs concrete. The initial preview and installer were committed and pushed to `main` as `9730eb2`. No release has been published.
