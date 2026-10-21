@@ -1,12 +1,12 @@
 # Bearing build plan
 
-Version 0.1 plan · 20 October 2026 · Developer preview implemented; live-agent acceptance and comparative evaluation remain
+Version 0.1 plan · 21 October 2026 · Developer preview implemented; live-agent acceptance and comparative evaluation remain
 
 ## Current implementation
 
 The engineer-environment installer is now implemented: `install.sh` builds the native executable, and `bearing install` applies per-project client integration with preview, backups, and repeat-install checks. It reuses the existing setup renderer and adds no dependencies. See [INSTALL.md](INSTALL.md) for usage and supported configuration formats, and [IMPLEMENTATION.md](IMPLEMENTATION.md) for verification limits.
 
-The Go executable, SQLite persistence, seven typed MCP tools, CLI, engineering policy, research/spec/build workflows, setup generation, and recovery commands are implemented. See [README.md](README.md) for build and use, [CLI_EXAMPLES.md](CLI_EXAMPLES.md) for concrete requests, and [IMPLEMENTATION.md](IMPLEMENTATION.md) for verification and remaining release gates.
+The Go executable, SQLite persistence, eight typed MCP tools, CLI, engineering policy, research/spec/build workflows, setup generation, and recovery commands are implemented. The eighth tool, `bearing_git`, was added after this plan's original scope at the user's request. It works on branches in the main checkout: Conventional Branch names from the trunk, no commits to the trunk, and staged-only Conventional Commits. Bearing refuses linked worktrees. See [README.md](README.md) for build and use, [CLI_EXAMPLES.md](CLI_EXAMPLES.md) and [GIT_WORKFLOW.md](GIT_WORKFLOW.md) for concrete requests, and [IMPLEMENTATION.md](IMPLEMENTATION.md) for verification and remaining release gates.
 
 The deterministic tests cover cross-process CLI writes, MCP subprocess ↔ CLI handoff, retries, rollback, scoped memory, document lineage, completion validation, and restore. These establish software behavior. They do not replace the fresh Codex/Claude/OpenCode agent runs or token comparison in steps 3, 4, and 6.
 
@@ -46,7 +46,7 @@ Bearing's executable enforces its data and state contracts. The host agent follo
 - Embedded engineering rules and one embedded coding workflow.
 - Git-checkout binding and `.bearing/state.db`, excluded from version control.
 - Tasks, checkpoints, memory correction/retraction, bounded recall, and write receipts.
-- Seven agent operations: `start`, `resume`, `remember`, `recall`, `checkpoint`, `finish`, `rules`.
+- Eight agent operations: `start`, `resume`, `remember`, `recall`, `checkpoint`, `finish`, `git`, `rules`.
 - Human maintenance commands for initialization, status/history, setup output, export, backup, and restore into an empty destination.
 - Tested setup material for Codex, Claude Code, and OpenCode.
 - Storage failure tests, host handoffs, and a small comparative evaluation.
@@ -55,11 +55,12 @@ Bearing's executable enforces its data and state contracts. The host agent follo
 
 - A separate model runtime, model routing, or autonomous subagent coordinator.
 - Embeddings, a second code index, and a general knowledge graph.
-- Remote MCP hosting, cross-machine synchronization, and automatic worktree sharing.
+- Remote MCP hosting and cross-machine synchronization.
+- Linked worktree support; Bearing works on branches in the main checkout.
 - Automatic transcript extraction, compaction hooks, background watchers, and a plugin framework.
 - Automatic editing of arbitrary host configuration files.
 
-Separate worktrees have separate databases in this version. A branch change inside a checkout retains the database and triggers applicability checks. The first development/acceptance platform is macOS arm64, matching the current workspace. Claim other platform support only after running the relevant binary and tests there.
+Bearing refuses linked worktrees, because removing a worktree deletes its ignored state; work happens on branches in the main checkout. A branch change retains the database and triggers applicability checks. The first development/acceptance platform is macOS arm64, matching the current workspace. Claim other platform support only after running the relevant binary and tests there.
 
 ## Dependencies and readiness
 
@@ -70,7 +71,7 @@ Separate worktrees have separate databases in this version. A branch change insi
 | `github.com/modelcontextprotocol/go-sdk` | v1.8.0, approved and pinned | Maintained protocol implementation, stdio transport, and generated input/output schemas |
 | Gortex | Existing external companion | Source work must have graph coverage and follow its active policy |
 
-The user approved implementation from this plan, confirmed the native Go SQLite choice, and explicitly authorized tracking Bearing with Gortex. The two planned packages are now installed and pinned. No CLI framework, ORM, model runtime, or additional architecture layer was added. The MCP adapter uses one concrete-purpose generic response envelope across all seven typed SDK handlers so their success/error output schemas remain precise; it is transport code, not a general framework.
+The user approved implementation from this plan, confirmed the native Go SQLite choice, and explicitly authorized tracking Bearing with Gortex. The two planned packages are now installed and pinned. No CLI framework, ORM, model runtime, or additional architecture layer was added. The MCP adapter uses one concrete-purpose generic response envelope across all eight typed SDK handlers so their success/error output schemas remain precise; it is transport code, not a general framework.
 
 At the start of implementation, resolve compatible stable releases, record exact versions and the Go toolchain, and pin them in `go.mod`/`go.sum` after confirmation. Verify the built binary's SQLite version contains the WAL-reset fix described in the [storage research](research/02-go-sqlite-storage.md). Do not guess versions from an unpinned documentation page.
 
@@ -157,7 +158,7 @@ Complete these in order. Each step ends in working behavior and relevant checks,
 **Implement**
 
 - Add `bearing mcp --repo <absolute-checkout>` using the confirmed SDK.
-- Expose the seven operations with exact input/output schemas and clear descriptions.
+- Expose the agent operations with exact input/output schemas and clear descriptions.
 - Keep MCP stdout free of startup text and diagnostics.
 - Author and embed WORKFLOW.md: orient, inspect through Gortex, make the next useful change, verify, preserve.
 - Render the first setup bundle for Codex, including MCP configuration, a minimal instruction entry point, and the workflow skill.

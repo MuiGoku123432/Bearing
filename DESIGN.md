@@ -1,6 +1,6 @@
 # Bearing
 
-Product design · Updated 20 October 2026
+Product design · Updated 21 October 2026
 
 Repository: [MuiGoku123432/Bearing](https://github.com/MuiGoku123432/Bearing)
 
@@ -10,7 +10,7 @@ Research: [findings and source documents](research/README.md), including [implem
 
 Bearing is a native Go coding-agent tool with SQLite storage and MCP support. It gives OpenCode, Codex, and Claude Code built-in engineering policy, useful task context, durable memory, progress recovery, and evidence-based completion. Agents use Bearing alongside Gortex: Bearing preserves outcomes, decisions, and evidence; Gortex supplies current code evidence and guarded code operations.
 
-Go, SQLite, MCP support, Gortex integration, and the name Bearing are approved choices. Package selection and installation details remain to be confirmed before dependencies are added.
+Go, SQLite, MCP support, Gortex integration, and the name Bearing are approved choices. The pinned dependencies are `modernc.org/sqlite` and the official MCP Go SDK.
 
 ## Core requirements
 
@@ -67,15 +67,13 @@ Keep command parsing, persistence, and MCP handling separate where they have rea
 
 Connect each consumer to both Bearing and Gortex. Bearing records Gortex symbol/file references and the checkout/revision associated with evidence. On resume, the agent uses those references to fetch current evidence through Gortex before changing code. Do not proxy Gortex's whole API through Bearing or duplicate its graph.
 
-Existing Gortex memories remain in Gortex. Bearing owns newly created Bearing records. When relevant prior knowledge exists there, retain its source reference rather than creating independently editable copies. No automatic import, deletion, or bidirectional synchronization is part of the first version.
-
-An active Gortex policy may require saving durable decisions through its own `remember` operation. Honor that policy and let Bearing reference the resulting authoritative record instead of silently suppressing the write or maintaining a competing claim.
+Bearing memory is self-contained. Decisions, constraints, lessons, preferences, and user corrections are saved in Bearing and recalled from Bearing, whether or not Gortex is available or keeps similar notes. Bearing does not import, synchronize with, or defer to Gortex memories, and they are not part of Bearing recall. If an active Gortex policy also requires its own memory write, the agent may do both; the Bearing record stays complete on its own.
 
 If Gortex is unavailable, Bearing's memory and checkpoint commands still work. Code work must follow the active Gortex failure policy and report the missing integration rather than silently replacing graph checks with file searches. Ordinary setup must not start or restart the machine-wide daemon.
 
 ### SQLite storage
 
-Initial scope is local Git repositories. The v0.1 storage location is `.bearing/state.db` in the checkout, ignored by Git. All three clients working in that checkout use the same database. Keep writable state out of `.git`, which agent environments may protect. Linked worktrees have separate databases initially; sharing across worktrees is a later decision. Bind MCP startup to an explicit repository path; CLI commands may resolve the current repository. Fail clearly when the project cannot be resolved or the state directory is not writable.
+Initial scope is local Git repositories. The v0.1 storage location is `.bearing/state.db` in the checkout, ignored by Git. All three clients working in that checkout use the same database. Keep writable state out of `.git`, which agent environments may protect. Bearing works on branches in the main checkout and refuses linked worktrees, because removing a worktree deletes its ignored Bearing state. Bind MCP startup to an explicit repository path; CLI commands may resolve the current repository. Fail clearly when the project cannot be resolved or the state directory is not writable.
 
 Use three concrete record types:
 
@@ -85,7 +83,7 @@ Use three concrete record types:
 | Task | ID, outcome, observable acceptance criteria, status, checkout context, latest checkpoint reference, and update version |
 | Checkpoint | Task ID, completed work, unresolved questions, failed attempts, verification results, next action, and revision/working-tree context |
 
-Repository-wide knowledge and worktree-specific observations must be distinguishable. A branch name alone is not proof that evidence is current. No global or cross-repository retrieval is enabled implicitly. Cross-machine synchronization is outside the first version.
+Repository-wide knowledge and checkout-specific observations must be distinguishable. A branch name alone is not proof that evidence is current. No global or cross-repository retrieval is enabled implicitly. Cross-machine synchronization is outside the first version.
 
 Use transactions for checkpoint/task updates and memory replacement. Return success only after commit. Validate an expected update version to reject conflicting writes, and use request IDs to make retried writes idempotent. Bound lock waits and return a clear retryable error rather than losing work.
 
@@ -109,9 +107,10 @@ Keep a small operation set with matching behavior across both interfaces:
 | `bearing recall` | Retrieve a bounded set of relevant memories | `bearing_recall` |
 | `bearing checkpoint` | Save progress, evidence, and the next action | `bearing_checkpoint` |
 | `bearing finish` | Validate acceptance results, verification, and engineering self-review; record completion | `bearing_finish` |
+| `bearing git` | Inspect Git state, create and switch Conventional Branches, and commit reviewed staged changes off the trunk | `bearing_git` |
 | `bearing rules` | Return the canonical engineering and communication rules | `bearing_rules` |
 
-These are the planned v0.1 operation names, not implemented commands. [CONTRACT.md](CONTRACT.md) defines request fields and CLI shapes. `bearing mcp` starts the protocol server; initialization, setup output, inspection, export, backup, and restore remain maintenance commands rather than additional always-advertised agent tools.
+These operations are implemented. [CONTRACT.md](CONTRACT.md) defines request fields and CLI shapes. `bearing mcp` starts the protocol server; initialization, setup output, inspection, export, backup, and restore remain maintenance commands rather than additional always-advertised agent tools.
 
 CLI output is short readable text by default, with explicit JSON output for scripts. MCP returns structured results with concise text, stable IDs, and visible truncation. Reserve stdout for MCP protocol traffic and send diagnostics to stderr. A tool must report errors as errors.
 
@@ -167,12 +166,12 @@ Start retrieval with scope, file/symbol anchors, and text matching. Measure miss
 
 ## Dependencies and consumer setup
 
-Go, SQLite, and MCP are approved technology choices. The following concrete packages are recommendations to confirm before adding them:
+Go, SQLite, and MCP are approved technology choices. Two packages are pinned:
 
 | Dependency | Why it is needed |
 | --- | --- |
-| [Official MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk) | Implement the supported protocol and transports without writing a second MCP implementation |
-| [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) | Candidate SQLite driver that avoids a C toolchain requirement; review its platform support, dependency tree, and pinned version before adoption |
+| [Official MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk) v1.8.0 | Implement the supported protocol and transports without writing a second MCP implementation |
+| [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) v1.60.1 | SQLite without a C toolchain; the built binary embeds SQLite 3.53.4, which includes the WAL-reset fix |
 
 Use Go's standard library for command parsing, SQL access, JSON, paths, and ordinary tests where sufficient. Do not add an ORM, CLI framework, vector database, or orchestration framework to the initial build.
 
@@ -227,4 +226,4 @@ Useful references: [GSD architecture](https://github.com/gsd-build/get-shit-done
 
 ## Current state
 
-The provided GitHub repository was verified as empty on 20 October 2026. This local workspace is initialized on `main`, with `origin` pointing to `https://github.com/MuiGoku123432/Bearing.git`. The plan and canonical engineering rules are local documents. No executable, SQLite database, dependencies, consumer configuration, or Gortex tracking has been installed by this planning update.
+Bearing is a working developer preview on macOS arm64: the executable, SQLite store, eight MCP tools, CLI, setup and installer, and recovery commands are implemented and tested. Fresh-session handoffs across the three consumers and the comparative evaluation remain before a v0.1 release. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for verified behavior and remaining release gates.

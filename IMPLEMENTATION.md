@@ -1,6 +1,6 @@
 # Implementation and verification
 
-20 October 2026 · `0.1.0-dev` · macOS arm64
+20 October 2026, updated 21 October 2026 · `0.1.0-dev` · macOS arm64
 
 Bearing now has a working local developer preview. The native executable, shared domain operations, durable state, research/spec documents, embedded engineering policy, eight MCP tools, setup bundles, and recovery commands are implemented. The complete release acceptance story still needs fresh model-driven sessions and comparative evaluation.
 
@@ -8,13 +8,13 @@ Bearing now has a working local developer preview. The native executable, shared
 
 - One Go binary using the standard library, `modernc.org/sqlite v1.60.1`, and `github.com/modelcontextprotocol/go-sdk v1.8.0`.
 - Go module minimum 1.26.0; built and tested with Go 1.27.1. A build with `CGO_ENABLED=0` succeeds. Its SQLite engine reports **3.53.4**.
-- Checkout-bound SQLite with WAL, foreign keys, FULL synchronization, schema version checks, bounded lock waits, transactional writes, optimistic versions, and durable request receipts.
+- Checkout-bound SQLite with WAL, foreign keys, FULL synchronization, schema version checks and a v1→v2 migration, bounded lock waits, transactional writes, optimistic versions, and durable request receipts.
 - Research, spec, and build tasks. Explicit Markdown snapshots include bodies, digests, provenance, and lineage. Saved documents survive later checkpoints and missing working files.
-- Attributed memory, project/checkout applicability, path/symbol anchors, FTS5 ranking, supersession/retraction, and bounded responses.
-- Completion checks for acceptance evidence, current known checkout/HEAD, and all five engineering review outcomes.
+- Self-contained attributed memory, project/checkout applicability, path/symbol anchors, stemmed FTS5 ranking, supersession/retraction, and bounded responses.
+- Completion checks for acceptance evidence and all five engineering review outcomes. The finish checkpoint records Bearing's own checkout context.
 - Exact embedded ENGINEERING.md, one maintained WORKFLOW.md, and host setup artifacts carrying those instructions.
 - Shared CLI/MCP operations; all eight MCP handlers have typed input/output schemas and structured errors with text fallback.
-- Explicit Git branch creation/switching, worktree creation with saved-state copying, and staged-only conventional commits. CLI and MCP share precondition checks, dry runs, bounded output, and native hook/signing behavior; no dependencies or database schema were added.
+- Branch-only Git: Conventional Branch creation from the trunk, clean switching, and staged-only Conventional Commits that never land on the trunk. Linked worktrees are refused. CLI and MCP share the checks, dry runs, bounded output, and native hook/signing behavior.
 - Logical export, consistent physical backup, and restore into an empty destination.
 - Source installer `install.sh` and `bearing install`: user-local binary, per-project MCP settings and workflow skill, preview mode, backups, repeat-install checks, and error recovery. [INSTALL.md](INSTALL.md) documents supported formats and manual-merge cases.
 
@@ -32,11 +32,35 @@ There is no model runtime, Gortex proxy, second source index, ORM, CLI framework
 | `git diff --check` | Pass |
 | Repository initialization and binary version report | SQLite 3.53.4; embedded policy/workflow hashes returned |
 
-Twelve test files cover restart recovery, retry digest conflicts, same-request replay, separate-connection and separate-process writers, bounded SQLite contention, failure injection with full rollback, SQLite-full simulation with a page limit, corrupt JSON relationship rejection, document digest verification on restore, missing documents on retry, task requirement history, completion rejection, scope filtering, literal FTS queries, response budgets, Unicode, document lineage, path boundaries, worktree isolation, backup/restore, and CLI error/setup behavior. Installer tests cover all three clients (including both OpenCode layouts), dry runs, existing settings and instruction preservation, custom environment/timeouts, backup contents, permissions, repeated installs, paths with spaces, malformed and duplicate-key JSON, conflicting formats, custom skills, symlink refusal, and rollback/retry after a forced skill-directory write failure.
+Twelve test files cover restart recovery, retry digest conflicts, same-request replay, separate-connection and separate-process writers, bounded SQLite contention, failure injection with full rollback, SQLite-full simulation with a page limit, corrupt JSON relationship rejection, document digest verification on restore, missing documents on retry, task requirement history, completion rejection, scope filtering, literal FTS queries, response budgets, Unicode, document lineage, path boundaries, linked-worktree refusal, backup/restore, and CLI error/setup behavior. Installer tests cover all three clients (including both OpenCode layouts), dry runs, existing settings and instruction preservation, custom environment/timeouts, backup contents, permissions, repeated installs, paths with spaces, malformed and duplicate-key JSON, conflicting formats, custom skills, symlink refusal, and rollback/retry after a forced skill-directory write failure.
 
 The MCP integration test launches a separate server process. It lists the eight schemas, exercises every handler, creates a real Git branch and staged conventional commit, passes inspected Git and task state between MCP and CLI, checks cross-interface receipt replay, and rejects a per-call repository override. This is a protocol and persistence test, not a model behavior evaluation.
 
-Git tests cover stale HEAD/branch/index rejection, dry runs, dirty checkout protection, staged-only commits, native hook rejection, message validation, redirected-environment refusal, occupied/nested worktree destinations, and saved research/spec lineage across worktrees. They verify that later task versions and checkout-scoped memory remain independent. External Git writers can still race preflight checks; uncertain/partial outcomes require inspection as documented in [GIT_WORKFLOW.md](GIT_WORKFLOW.md).
+Git tests cover Conventional Branch name rejection, trunk detection, dry runs, carrying uncommitted work onto a new branch, refusing dirty switches and dirty branches from another base, refused commits on the trunk, stale index rejection, staged-only commits, native hook rejection, message validation, unfinished merge state, and redirected-environment refusal. A manual run also confirmed trunk detection through `origin/HEAD`, the stale-upstream warning, and moving staged work off the trunk before committing. External Git writers can still race preflight checks; uncertain outcomes require inspection as documented in [GIT_WORKFLOW.md](GIT_WORKFLOW.md).
+
+## Review fixes · 21 October 2026
+
+| Fix | Behavior now | Proof |
+| --- | --- | --- |
+| Explicit memory IDs | Recall by up to twenty IDs no longer reports `not_found` when the limit omits existing records; duplicate IDs are ignored | `TestRecallExplicitIDsBeyondLimit` fails on the previous code |
+| Clean working tree | `init` writes `.bearing/.gitignore` containing `*` and leaves the repository `.gitignore` unchanged, so a fresh store no longer causes a dirty-checkout warning | Git status test; symlinked `.bearing/.gitignore` is refused |
+| Optional request IDs | MCP and CLI writes generate a missing request ID and return it. The request ID is outside the input digest, so retrying with the returned ID replays | Omitted-ID replay test; MCP schema test fails on the previous code |
+| Machine paths | Install reports and INSTALL.md state that the project MCP entry holds absolute paths and should not be shared through Git | Documentation and report text |
+| Stemmed recall | Schema version 2 rebuilds memory search with `porter unicode61`. Version 1 stores migrate on open in one transaction; v1 backups restore and migrate | Concurrent-open migration and v1 restore test; an older binary rejected the migrated store without changing it |
+
+`go vet ./...`, `go test ./...`, `go test -race ./...`, and `git diff --check` pass. Gortex was not available for these edits: the daemon was still building the index of this checkout after tracking was re-authorized. All touched files were read directly, and no new shared helper was added.
+
+## Branch-only Git, self-contained memory, simpler finish · 21 October 2026
+
+| Change | Behavior now | Breaking for callers |
+| --- | --- | --- |
+| No worktrees | The `worktree` operation and state copying are removed. Init, open, and restore refuse a linked worktree, because `git worktree remove` deletes its ignored `.bearing/` directory without warning (verified manually) | Yes: `worktree` operation, `path` field |
+| Simpler `bearing_git` | Operations are `inspect`, `branch`, `switch`, and `commit`. Branch and switch need no preconditions; commit needs only `expected_index` | Yes: `check-commit`, `expected_head`, `expected_branch` removed |
+| Branching practices | New branches follow Conventional Branch 1.1.0 and start from the trunk, with a stale-upstream warning. Work started on the trunk moves to the new branch. Commits never land on `main`, `master`, `develop`, or the trunk | New names must conform; existing branches still work |
+| Self-contained memory | Workflow, contract, and tool text no longer route decisions to Gortex memory. Bearing memory is saved and recalled on its own | No |
+| Finish context | Verification no longer carries agent-supplied `context`; `observed_at` is optional. The finish checkpoint records Bearing's own checkout context | Yes: `context` on evidence is rejected as an unknown field |
+
+The workflow text changed, so its identity hash changed; reinstall client skills with `bearing install` to pick it up. The engineering policy is unchanged.
 
 ## Consumer checks
 

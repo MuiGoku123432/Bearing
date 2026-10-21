@@ -195,6 +195,7 @@ func installSetup(ctx context.Context, repo, host, major string, dryRun bool) (s
 		}
 	}
 	report.WriteString("Keep this executable at its current path. Restart the client and approve project MCP settings if prompted.\n")
+	fmt.Fprintf(&report, "%s holds absolute paths for this machine. Do not share Bearing's entry through Git; each engineer runs bearing install.\n", config)
 	if _, err := exec.LookPath("gortex"); err != nil {
 		report.WriteString("Gortex is missing from PATH. Install and connect native Gortex before source work.\n")
 	} else {

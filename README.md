@@ -17,7 +17,7 @@ CGO_ENABLED=0 go build -o bin/bearing ./cmd/bearing
 ./bin/bearing rules
 ```
 
-`init` creates `.bearing/state.db` in the Git checkout and adds `/.bearing/` to its ignore rules. Separate worktrees have separate databases. State stays local; Bearing does not send documents to a model or external service.
+`init` creates `.bearing/state.db` in the Git checkout. The `.bearing/` directory ignores itself, so tracked files such as `.gitignore` stay unchanged. Bearing runs in the main checkout, not in linked worktrees. State stays local; Bearing does not send documents to a model or external service.
 
 Start a task with a JSON file or stdin:
 
@@ -75,16 +75,21 @@ The server command is `bearing mcp --repo /absolute/path/to/checkout`. It expose
 | `bearing_recall` | Search memory or retrieve exact saved document versions |
 | `bearing_checkpoint` | Save progress and document snapshots atomically |
 | `bearing_finish` | Check acceptance evidence and engineering self-review before completing |
-| `bearing_git` | Inspect Git state, manage branches/worktrees, and create conventional commits |
+| `bearing_git` | Inspect Git state, create and switch branches, and create conventional commits |
 | `bearing_rules` | Read the embedded engineering policy and workflow |
 
 Every tool publishes input and output schemas. MCP results contain either `result` or `error`, with matching structured content and text fallback. CLI `--json` returns the operation result directly, or an `error` envelope. Neither interface silently switches repositories.
 
-## Branches, worktrees, and conventional commits
+## Branches and conventional commits
 
-Use `bearing git --input git-request.json --json` or `bearing_git`. Inspect first, then supply the observed HEAD and branch when creating/switching a branch, creating a worktree, or committing. Commits also require the inspected staged tree and use only changes already staged by the host. Git hooks and signing remain active.
+Bearing works on branches in one checkout and does not use linked worktrees: removing a worktree deletes its ignored Bearing state, so Bearing refuses to run in one. Use `bearing git --input git-request.json --json` or `bearing_git`.
 
-A new worktree receives a consistent copy of saved tasks, memory, research, and specs. Future changes stay independent in each checkout. Checkpoint first, then resume the same task ID in the new worktree and reinstall its client settings. See [Git requests and recovery](GIT_WORKFLOW.md) for examples, dry runs, and conventional message rules.
+- New branches follow [Conventional Branch](https://conventional-branch.github.io/) names such as `feat/add-login` and start from the trunk (the remote default branch, or `main`/`master`).
+- Work started on the trunk moves to the new branch. Bearing never commits to `main`, `master`, `develop`, or the trunk.
+- A commit uses only changes already staged by the host and must match the `index_tree` from inspection. Messages follow Conventional Commits. Git hooks and signing remain active.
+- No push, force, deletion, stash, or automatic staging.
+
+See [Git requests and recovery](GIT_WORKFLOW.md) for examples and dry runs.
 
 ## Research → spec → build
 
@@ -101,14 +106,14 @@ Research and spec tasks must save their final document when finishing. Resume re
 
 [ENGINEERING.md](ENGINEERING.md) is embedded verbatim and identified by SHA-256. Start and resume return the full policy. Setup installs the same text in the skill. The [workflow](WORKFLOW.md) keeps investigation, implementation, verification, and handoff direct.
 
-Finish requires passing acceptance evidence and the five self-review checks: single-use code, reuse, necessity, conventions, and minimality. Evidence records its source, observation time, and checkout context. Bearing validates these records; the agent and its host remain responsible for actually performing the work.
+Finish requires passing acceptance evidence and the five self-review checks: single-use code, reuse, necessity, conventions, and minimality. Evidence records its source and outcome; Bearing records the checkout context itself. Bearing validates these records; the agent and its host remain responsible for actually performing the work.
 
 ## Durable state and context
 
 - SQLite uses WAL, foreign keys, full synchronous writes, and bounded lock waits. Tasks, checkpoints, document snapshots, memory corrections, and request receipts use transactions.
-- Task and memory writes require request IDs; updates require current versions. Retry identical uncertain database requests with the same ID. Use a new ID for a new action. Git writes use state preconditions instead; inspect after an uncertain Git result before retrying.
+- Task and memory writes accept request IDs; Bearing generates one when it is omitted and returns it. Updates require current versions. Retry identical uncertain database requests with the same ID. Use a new ID for a new action. Git writes use state preconditions instead; inspect after an uncertain Git result before retrying.
 - Memory is explicitly saved with a claim, source, basis, scope, and optional path/symbol anchors. Corrected and retracted claims remain auditable but leave normal recall.
-- Recall filters applicability before FTS5 ranking. Default memory recall returns at most five items within a 12,000-byte record budget. Resume is bounded to roughly 32,000 JSON bytes including full policy, with visible omissions.
+- Recall filters applicability before FTS5 ranking. English stemming matches word forms such as `retry` and `retrying`. Default memory recall returns at most five items within a 12,000-byte record budget. Resume is bounded to roughly 32,000 JSON bytes including full policy, with visible omissions.
 - These are byte budgets, not measured model token counts. No embedding service, transcript crawler, second code index, or background model loop is included.
 - Restoring into a new checkout preserves provenance and warns about checkout changes. Project-scoped claims can be reconsidered there; old checkout-scoped claims are excluded from ordinary recall.
 

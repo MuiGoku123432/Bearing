@@ -79,7 +79,7 @@ Run this through `recall`. The larger explicit budget retrieves most large docum
 }
 ```
 
-Valid kinds are `decision`, `constraint`, `lesson`, and `preference`. Basis is `user`, `observed`, or `inferred`; it describes provenance rather than assigning an artificial confidence percentage. Scope is `project` or `checkout` within this store. Store facts about current source code in Gortex.
+Valid kinds are `decision`, `constraint`, `lesson`, and `preference`. Basis is `user`, `observed`, or `inferred`; it describes provenance rather than assigning an artificial confidence percentage. Scope is `project` or `checkout` within this store. Bearing memory is self-contained; it does not import from or defer to Gortex memory. Revalidate claims about code through Gortex before relying on them.
 
 To replace a claim, add `action: "supersede"`, the old `id`, its `expected_version`, and a `reason`, alongside the replacement fields. The response contains the new memory ID. To retract without replacement:
 
@@ -119,7 +119,7 @@ The checkpoint keeps the previous outcome and criteria. Use `status: "blocked"` 
 
 ## Finish with real verification
 
-First run the relevant checks and review the actual diff under ENGINEERING.md. Use current repository context from `resume`; a known checkout or commit mismatch is rejected. Dirty files require the agent to revalidate the evidence.
+First run the relevant checks and review the actual diff under ENGINEERING.md. Bearing records the checkout path, HEAD, branch, and dirty state with the finish; do not copy them into the request. Rerun checks after relevant changes, including commits.
 
 ```json
 {
@@ -138,13 +138,6 @@ First run the relevant checks and review the actual diff under ENGINEERING.md. U
       "source": "The actual command, output reference, or observed result",
       "outcome": "pass",
       "exit_code": 0,
-      "observed_at": "ACTUAL_OBSERVATION_TIME",
-      "context": {
-        "path": "CANONICAL_CHECKOUT_PATH_FROM_RESUME",
-        "head": "CURRENT_COMMIT_FROM_RESUME_OR_OMIT_IF_UNBORN",
-        "dirty": true,
-        "captured_at": "ACTUAL_CONTEXT_TIME"
-      },
       "acceptance_ids": ["a1"],
       "blocking": true
     }
@@ -165,7 +158,7 @@ First run the relevant checks and review the actual diff under ENGINEERING.md. U
 }
 ```
 
-For research/spec tasks include the final Markdown in `documents` in this finish request. Manual evidence can omit `exit_code`. `not_applicable` is allowed on a review check only with a reason; acceptance criteria must pass. Finish validates the submitted evidence structure and known context, not the truth of an agent's claims.
+For research/spec tasks include the final Markdown in `documents` in this finish request. Manual evidence can omit `exit_code`; `observed_at` is optional. `not_applicable` is allowed on a review check only with a reason; acceptance criteria must pass. Finish validates the submitted evidence structure, not the truth of an agent's claims.
 
 ## Retry and inspect
 

@@ -101,7 +101,7 @@ func Restore(ctx context.Context, repo, source string) error {
 	if err != nil {
 		return err
 	}
-	destination, err := statePath(repository.Path)
+	destination, err := statePath(ctx, repository.Path)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,8 @@ func Restore(ctx context.Context, repo, source string) error {
 	if err := db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
 		return err
 	}
-	if version != 1 {
+	// Older supported versions are migrated by Init after publication.
+	if version < 1 || version > schemaVersion {
 		return fail("invalid_input", "Backup uses an unsupported schema version.")
 	}
 	var integrity string
@@ -160,7 +161,7 @@ func Restore(ctx context.Context, repo, source string) error {
 		return fail("invalid_input", "Backup failed SQLite integrity checks.")
 	}
 	var identity string
-	if err := db.QueryRowContext(ctx, "SELECT id FROM store_meta WHERE version=1").Scan(&identity); err != nil {
+	if err := db.QueryRowContext(ctx, "SELECT id FROM store_meta WHERE version=?", version).Scan(&identity); err != nil {
 		return fail("invalid_input", "This is not a Bearing backup.")
 	}
 	for _, table := range []string{"tasks", "checkpoints", "documents", "memories", "memory_anchors", "memory_search", "write_receipts"} {

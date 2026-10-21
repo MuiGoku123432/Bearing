@@ -42,7 +42,15 @@ func ResolveRepository(ctx context.Context, path string) (Repository, error) {
 	return r, nil
 }
 
-func statePath(root string) (string, error) {
+func statePath(ctx context.Context, root string) (string, error) {
+	// Removing a linked worktree deletes its ignored files, including Bearing state.
+	dirs, err := runGit(ctx, root, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
+	if err != nil {
+		return "", err
+	}
+	if gitDir, commonDir, _ := strings.Cut(strings.TrimSpace(string(dirs)), "\n"); gitDir != commonDir {
+		return "", fail("invalid_input", "Bearing runs in the main checkout, not a linked worktree, because removing a worktree deletes its Bearing state. Use branches in the main checkout.")
+	}
 	dir := filepath.Join(root, ".bearing")
 	for _, path := range []string{dir, filepath.Join(dir, "state.db")} {
 		info, err := os.Lstat(path)

@@ -24,17 +24,17 @@ An input document that changed on disk needs reconciliation before executing its
 
 ## Verify and preserve
 
-Run the relevant real checks after the last relevant edit. Record actual command outcomes or concrete manual observations and their Git context. Suggested test targets are not passing tests. Keep failed attempts as history; do not repeat them without a reason.
+Run the relevant real checks after the last relevant edit or commit. Record actual command outcomes or concrete manual observations; Bearing records the Git context itself. Suggested test targets are not passing tests. Keep failed attempts as history; do not repeat them without a reason.
 
-Checkpoint after meaningful progress, a changed approach, a blocker, or a handoff. Save durable decisions promptly under the active Gortex memory policy; reference authoritative Gortex memories rather than making competing copies. Use Bearing memory for Bearing-owned claims with scope and evidence.
+Checkpoint after meaningful progress, a changed approach, a blocker, or a handoff. Save durable decisions, constraints, lessons, and preferences promptly in Bearing memory with scope and evidence. Bearing memory stands on its own: save and recall it in Bearing whether or not Gortex or another tool also keeps notes.
 
 Before finish, inspect the diff against all five engineering self-review items. Record one concise review summary and the outcomes. Every acceptance criterion needs supporting verification. An unresolved failure or finding means work remains. Do not claim independent certification from a submitted checklist.
 
-## Branches, worktrees, and commits
+## Branches and commits
 
-Use `bearing_git` or `bearing git` when a task needs Git changes. Honor the user's branch/worktree choice and existing authorization. Inspect first; carry the returned HEAD, branch, and staged tree into write preconditions. Use `dry_run` when the proposed change needs review. A new branch needs a clean checkout. A worktree is useful for independent work; checkpoint research, specs, and progress before creating it so their saved versions carry over. Each worktree has its own Bearing store after the copy. Reinstall client settings for its path and use the active Gortex view for that checkout.
+Work on branches in this checkout; do not create linked worktrees. Use `bearing_git` or `bearing git` for Git changes and honor the user's existing authorization. Start new work on a Conventional Branch such as `feat/add-login` or `fix/header-bug`, created from the trunk. Never commit directly to the trunk. If work began on the trunk, create the branch from the current commit and the changes move with it. Use `dry_run` when the change needs review.
 
-Review the diff and stage only the intended files through the host's Git tools. Write a Conventional Commits message such as `feat: add task checkpoints`, then ask Bearing to commit the reviewed staged tree. Git hooks and signing still apply. Inspect after an uncertain result; do not blindly retry a Git write. Bearing does not push automatically. After a branch change or commit, revalidate task evidence against the current checkout/HEAD and checkpoint the result. Keep the engineering self-review and required tests in the normal build flow.
+Review the diff and stage only the intended files through the host's Git tools. Inspect, then commit with the returned `index_tree` as `expected_index` and a Conventional Commits message such as `feat: add task checkpoints`. Git hooks and signing still apply. Inspect after an uncertain result; do not blindly retry a Git write. Bearing does not push. After a branch change or commit, checkpoint the result. Keep the engineering self-review and required tests in the normal build flow.
 
 ## Context and handoffs
 

@@ -48,6 +48,26 @@ func TestScopedMemoryLifecycle(t *testing.T) {
 	}
 }
 
+func TestRecallExplicitIDsBeyondLimit(t *testing.T) {
+	ctx := context.Background()
+	s := testStore(t)
+	var ids []string
+	for i := 0; i < 8; i++ {
+		out, err := s.Remember(ctx, RememberInput{RequestID: NewID(), Kind: "decision", Claim: "Keep explicit lookups exact", Basis: "user", Source: "Test"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, out.ID)
+	}
+	result, err := s.Recall(ctx, RecallInput{IDs: append(ids, ids[0])})
+	if err != nil || len(result.Memories) != 5 || result.Omitted != 3 {
+		t.Fatalf("existing IDs reported missing: count=%d omitted=%d err=%v", len(result.Memories), result.Omitted, err)
+	}
+	if _, err := s.Recall(ctx, RecallInput{IDs: []string{ids[0], "missing"}}); ErrorDetails(err).Code != "not_found" {
+		t.Fatalf("missing ID not reported: %v", err)
+	}
+}
+
 func TestRecallBudgetAndLiteralFTS(t *testing.T) {
 	ctx := context.Background()
 	s := testStore(t)

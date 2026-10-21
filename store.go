@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -33,12 +32,24 @@ CREATE TABLE write_receipts (request_id TEXT PRIMARY KEY, operation TEXT NOT NUL
 PRAGMA user_version=1;
 `
 
+const schemaVersion = 2
+
+// Version 2 stems English search words so "retry" finds "retrying". FTS5 fixes the
+// tokenizer at creation, so the search table is rebuilt from active memories.
+const migrateStemmedSearch = `
+DROP TABLE memory_search;
+CREATE VIRTUAL TABLE memory_search USING fts5(id UNINDEXED, claim, evidence, tokenize='porter unicode61');
+INSERT INTO memory_search(id,claim,evidence) SELECT id,json_extract(data,'$.claim'),json_extract(data,'$.source') FROM memories WHERE status='active';
+UPDATE store_meta SET version=2;
+PRAGMA user_version=2;
+`
+
 func Init(ctx context.Context, repo string) (*Store, error) {
 	r, err := ResolveRepository(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
-	path, err := statePath(r.Path)
+	path, err := statePath(ctx, r.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -46,44 +57,19 @@ func Init(ctx context.Context, repo string) (*Store, error) {
 		return nil, err
 	}
 	// Ignore state before creating it so repository observations exclude the database.
-	ignore := filepath.Join(r.Path, ".gitignore")
-	if info, err := os.Lstat(ignore); err == nil && info.Mode()&os.ModeSymlink != 0 {
-		return nil, fail("invalid_input", "Refusing to update a symlinked .gitignore.")
-	} else if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	root, err := os.OpenRoot(r.Path)
+	// The state directory ignores itself, so initialization leaves tracked files unchanged.
+	dir, err := os.OpenRoot(filepath.Dir(path))
 	if err != nil {
 		return nil, err
 	}
-	defer root.Close()
-	data, err := root.ReadFile(".gitignore")
-	if err != nil && !os.IsNotExist(err) {
+	defer dir.Close()
+	if info, err := dir.Lstat(".gitignore"); err == nil && !info.Mode().IsRegular() {
+		return nil, fail("invalid_input", "Refusing to replace .bearing/.gitignore because it is not a regular file.")
+	} else if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	found := false
-	for _, line := range strings.Split(string(data), "\n") {
-		if strings.TrimSpace(line) == "/.bearing/" || strings.TrimSpace(line) == ".bearing/" {
-			found = true
-		}
-	}
-	if !found {
-		f, err := root.OpenFile(".gitignore", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			return nil, err
-		}
-		prefix := ""
-		if len(data) > 0 && data[len(data)-1] != '\n' {
-			prefix = "\n"
-		}
-		_, writeErr := f.WriteString(prefix + "/.bearing/\n")
-		closeErr := f.Close()
-		if writeErr != nil {
-			return nil, writeErr
-		}
-		if closeErr != nil {
-			return nil, closeErr
-		}
+	if err = dir.WriteFile(".gitignore", []byte("*\n"), 0600); err != nil {
+		return nil, err
 	}
 	return openStore(ctx, r.Path, true)
 }
@@ -97,7 +83,7 @@ func Open(ctx context.Context, repo string) (*Store, error) {
 }
 
 func openStore(ctx context.Context, root string, initialize bool) (*Store, error) {
-	path, err := statePath(root)
+	path, err := statePath(ctx, root)
 	if err != nil {
 		return nil, err
 	}
@@ -140,18 +126,19 @@ func openStore(ctx context.Context, root string, initialize bool) (*Store, error
 	if err = db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
 		return nil, err
 	}
-	if version > 1 || version < 0 {
+	if version > schemaVersion || version < 0 {
 		return nil, fail("unsupported_schema", "This database needs a different Bearing version. It was not migrated.")
 	}
 	if version == 0 && !initialize {
 		return nil, fail("not_initialized", "Database initialization is incomplete. Run bearing init.")
 	}
-	if version == 0 {
+	if version < schemaVersion {
 		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
 		defer tx.Rollback()
+		// Read again under the write lock so concurrent processes migrate once.
 		if err = tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
 			return nil, err
 		}
@@ -167,6 +154,12 @@ func openStore(ctx context.Context, root string, initialize bool) (*Store, error
 				return nil, err
 			}
 			if _, err = tx.ExecContext(ctx, "INSERT INTO store_meta(id,version) VALUES(?,1)", NewID()); err != nil {
+				return nil, err
+			}
+			version = 1
+		}
+		if version == 1 {
+			if _, err = tx.ExecContext(ctx, migrateStemmedSearch); err != nil {
 				return nil, err
 			}
 		}

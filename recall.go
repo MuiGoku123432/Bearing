@@ -70,12 +70,19 @@ func (s *Store) Recall(ctx context.Context, in RecallInput) (RecallResult, error
 	}
 	query := "SELECT m.data FROM memories m WHERE m.status='active' AND (json_extract(m.data,'$.scope')='project' OR json_extract(m.data,'$.context.path')=?)"
 	args := []any{s.Root}
+	rowLimit := in.Limit + 1
 	if len(in.IDs) > 0 {
-		query = "SELECT m.data FROM memories m WHERE m.id IN (" + strings.TrimSuffix(strings.Repeat("?,", len(in.IDs)), ",") + ")"
 		args = nil
+		seen := map[string]bool{}
 		for _, id := range in.IDs {
-			args = append(args, id)
+			if !seen[id] {
+				seen[id] = true
+				args = append(args, id)
+			}
 		}
+		// Read every requested row so a missing ID is detected even when the limit omits results.
+		rowLimit = len(args)
+		query = "SELECT m.data FROM memories m WHERE m.id IN (" + strings.TrimSuffix(strings.Repeat("?,", rowLimit), ",") + ")"
 	} else {
 		if len(in.Anchors) > 0 {
 			query += " AND (NOT EXISTS(SELECT 1 FROM memory_anchors a WHERE a.memory_id=m.id) OR EXISTS(SELECT 1 FROM memory_anchors a WHERE a.memory_id=m.id AND ("
@@ -107,7 +114,7 @@ func (s *Store) Recall(ctx context.Context, in RecallInput) (RecallResult, error
 		query += "bm25(memory_search),"
 	}
 	query += "json_extract(m.data,'$.updated_at') DESC,m.id LIMIT ?"
-	args = append(args, in.Limit+1)
+	args = append(args, rowLimit)
 	rows, err := s.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return out, err
@@ -135,7 +142,7 @@ func (s *Store) Recall(ctx context.Context, in RecallInput) (RecallResult, error
 	if out.Omitted > 0 {
 		out.Warnings = append(out.Warnings, "More results exist or exceeded the budget; narrow the query or retrieve IDs explicitly.")
 	}
-	if len(in.IDs) > 0 && len(out.Memories)+out.Omitted < len(in.IDs) {
+	if len(in.IDs) > 0 && len(out.Memories)+out.Omitted < rowLimit {
 		return out, fail("not_found", "One or more memory IDs were not found.")
 	}
 	return out, nil

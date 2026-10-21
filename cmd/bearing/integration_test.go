@@ -42,8 +42,7 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 		{"config", "user.email", "bearing@example.invalid"},
 		{"config", "core.hooksPath", os.DevNull},
 		{"config", "commit.gpgsign", "false"},
-		{"add", ".gitignore"},
-		{"commit", "-qm", "chore: initialize fixture"},
+		{"commit", "--allow-empty", "-qm", "chore: initialize fixture"},
 	} {
 		if out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
 			t.Fatalf("Git fixture: %s %v", out, err)
@@ -72,7 +71,7 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 		t.Fatalf("Git inspect envelope: %+v %v", gitEnvelope, err)
 	}
 	observed := gitEnvelope.Result.Repository
-	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "branch", Branch: "feat/mcp", ExpectedHead: observed.Head, ExpectedBranch: observed.Branch}})
+	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "branch", Branch: "feat/mcp"}})
 	if gitErr != nil || gitResult.IsError {
 		t.Fatalf("MCP branch: %+v %v", gitResult, gitErr)
 	}
@@ -91,21 +90,17 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 	if err := json.Unmarshal(gitOutput.Bytes(), &staged); err != nil || staged.Repository.Branch != "feat/mcp" || staged.IndexTree == "" {
 		t.Fatalf("CLI Git inspection: %+v %v", staged, err)
 	}
-	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "commit", Message: "feat: exercise the MCP workflow", ExpectedHead: staged.Repository.Head, ExpectedBranch: staged.Repository.Branch, ExpectedIndex: staged.IndexTree}})
+	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "commit", Message: "invalid message", ExpectedIndex: staged.IndexTree}})
+	if gitErr != nil || !gitResult.IsError {
+		t.Fatalf("Git message validation: %+v %v", gitResult, gitErr)
+	}
+	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "commit", Message: "feat: exercise the MCP workflow", ExpectedIndex: staged.IndexTree}})
 	if gitErr != nil || gitResult.IsError {
 		t.Fatalf("MCP commit: %+v %v", gitResult, gitErr)
 	}
 	actual, err := bearing.ResolveRepository(ctx, root)
 	if err != nil || actual.Head == observed.Head || actual.Branch != "feat/mcp" || actual.Dirty {
 		t.Fatalf("MCP commit state: %+v %v", actual, err)
-	}
-	gitOutput.Reset()
-	if err := run(ctx, []string{"git", "--repo", root, "--json", "--input", "-"}, strings.NewReader(`{"operation":"check-commit","message":"docs: explain Git support"}`), &gitOutput, &gitErrors); err != nil || !json.Valid(gitOutput.Bytes()) {
-		t.Fatalf("CLI message check: %s %v", gitOutput.String(), err)
-	}
-	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "check-commit", Message: "invalid message"}})
-	if gitErr != nil || !gitResult.IsError {
-		t.Fatalf("Git validation: %+v %v", gitResult, gitErr)
 	}
 	for _, tool := range tools.Tools {
 		if tool.InputSchema == nil || tool.OutputSchema == nil {
@@ -168,7 +163,8 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 	if err != nil || !result.IsError || !strings.Contains(result.Content[0].(*mcp.TextContent).Text, "conflict") {
 		t.Fatalf("structured conflict missing: %+v %v", result, err)
 	}
-	result, err = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_remember", Arguments: bearing.RememberInput{RequestID: "mcp-memory", Kind: "lesson", Claim: "The CLI and MCP share checkpoints", Basis: "observed", Source: "This integration test"}})
+	// The input schema must let agents omit request_id.
+	result, err = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_remember", Arguments: map[string]any{"kind": "lesson", "claim": "The CLI and MCP share checkpoints", "basis": "observed", "source": "This integration test"}})
 	if err != nil || result.IsError {
 		t.Fatalf("remember: %+v %v", result, err)
 	}
@@ -180,7 +176,7 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 	for _, name := range []string{"single_use", "reuse", "necessity", "conventions", "minimality"} {
 		checks[name] = bearing.ReviewCheck{Status: "pass"}
 	}
-	finish := bearing.FinishInput{RequestID: "mcp-finish", TaskID: started.Mutation.ID, ExpectedVersion: 2, Summary: "Verified the transport handoff", AcceptanceResults: []bearing.AcceptanceResult{{ID: "a1", Status: "pass", EvidenceIDs: []string{"v1"}}}, Verification: []bearing.Evidence{{ID: "v1", Kind: "inspection", Description: "CLI resumed the task saved through MCP", Source: "TestStdioMCPAndCLIShareState", Outcome: "pass", ObservedAt: resumed.Repository.CapturedAt, Context: resumed.Repository, AcceptanceIDs: []string{"a1"}}}, Review: bearing.Review{PolicyID: bearing.Rules().ID, Summary: "Integration fixture review", Checks: checks}}
+	finish := bearing.FinishInput{RequestID: "mcp-finish", TaskID: started.Mutation.ID, ExpectedVersion: 2, Summary: "Verified the transport handoff", AcceptanceResults: []bearing.AcceptanceResult{{ID: "a1", Status: "pass", EvidenceIDs: []string{"v1"}}}, Verification: []bearing.Evidence{{ID: "v1", Kind: "inspection", Description: "CLI resumed the task saved through MCP", Source: "TestStdioMCPAndCLIShareState", Outcome: "pass", AcceptanceIDs: []string{"a1"}}}, Review: bearing.Review{PolicyID: bearing.Rules().ID, Summary: "Integration fixture review", Checks: checks}}
 	result, err = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_finish", Arguments: finish})
 	if err != nil || result.IsError {
 		t.Fatalf("finish: %+v %v", result, err)
