@@ -106,7 +106,7 @@ Research and spec tasks must save their final document when finishing. Resume re
 
 [ENGINEERING.md](ENGINEERING.md) is embedded verbatim and identified by SHA-256. Start and resume return the full policy. The installed skill carries only the workflow and points to start/resume for the policy. The [workflow](WORKFLOW.md) keeps investigation, implementation, verification, and handoff direct.
 
-Finish requires passing acceptance evidence and the five self-review checks: single-use code, reuse, necessity, conventions, and minimality. Evidence records its source and outcome; Bearing records the checkout context itself. Bearing validates these records; the agent and its host remain responsible for actually performing the work.
+Finish requires passing acceptance evidence and the five self-review checks: single-use code, reuse, necessity, conventions, and minimality. Evidence records its source and outcome; Bearing records the checkout context and a working-tree hash itself, rejects passing evidence reused from a different tree, and lists changed test files in the finish receipt. Bearing validates these records; the agent and its host remain responsible for actually performing the work.
 
 ## Durable state and context
 

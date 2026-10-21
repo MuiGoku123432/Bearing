@@ -15,7 +15,7 @@ func testFinish(t *testing.T, s *Store, taskID string, version int) FinishInput 
 		checks[name] = ReviewCheck{Status: "pass"}
 	}
 	zero := 0
-	return FinishInput{RequestID: NewID(), TaskID: taskID, ExpectedVersion: version, Summary: "Verified the intended result", Verification: []Evidence{{ID: "v1", Kind: "test", Description: "Run the relevant acceptance check", Source: "go test ./...", Outcome: "pass", ExitCode: &zero, AcceptanceIDs: []string{"a1"}, Blocking: true}}, Review: ReviewInput{Summary: "Reviewed the smallest change and existing code", Checks: checks}}
+	return FinishInput{RequestID: NewID(), TaskID: taskID, ExpectedVersion: version, Summary: "Verified the intended result", Verification: []Evidence{{ID: "v1", Kind: "command", Description: "Run the relevant acceptance check", Source: "Local test run", Command: "go test ./...", Outcome: "pass", ExitCode: &zero, AcceptanceIDs: []string{"a1"}, Blocking: true}}, Review: ReviewInput{Summary: "Reviewed the smallest change and existing code", Checks: checks}}
 }
 
 func TestResearchSpecBuildLineage(t *testing.T) {
@@ -69,7 +69,7 @@ func TestResearchSpecBuildLineage(t *testing.T) {
 
 func TestFinishCannotSkipEvidenceOrReview(t *testing.T) {
 	// Each failure names the criterion, evidence, or review check at fault.
-	for scenario, named := range map[string]string{"unlinked_criterion": "criterion a1", "unknown_criterion": "criterion a9", "only_not_run": "criterion a1", "failed_check": "verification v1", "duplicate_id": "ID v1", "unreviewed": "check reuse", "unresolved": "unresolved", "exit_mismatch": "Verification v1", "research_without_document": "document"} {
+	for scenario, named := range map[string]string{"unlinked_criterion": "criterion a1", "unknown_criterion": "criterion a9", "only_not_run": "criterion a1", "failed_check": "Blocking verification v1", "duplicate_id": "ID v1", "command_without_text": "Command verification v1", "command_without_exit_code": "Command verification v1", "unreviewed": "check reuse", "unresolved": "unresolved", "exit_mismatch": "Verification v1", "research_without_document": "document"} {
 		t.Run(scenario, func(t *testing.T) {
 			s := testStore(t)
 			kind := "build"
@@ -86,9 +86,14 @@ func TestFinishCannotSkipEvidenceOrReview(t *testing.T) {
 			case "only_not_run":
 				in.Verification[0].Outcome, in.Verification[0].ExitCode, in.Verification[0].Blocking = "not_run", nil, false
 			case "failed_check":
-				in.Verification[0].Outcome, in.Verification[0].ExitCode = "fail", nil
+				one := 1
+				in.Verification[0].Outcome, in.Verification[0].ExitCode = "fail", &one
 			case "duplicate_id":
 				in.Verification = append(in.Verification, in.Verification[0])
+			case "command_without_text":
+				in.Verification[0].Command = " "
+			case "command_without_exit_code":
+				in.Verification[0].ExitCode = nil
 			case "unreviewed":
 				delete(in.Review.Checks, "reuse")
 			case "unresolved":
@@ -152,6 +157,51 @@ func TestRequirementHistoryAndExplicitTaskSelection(t *testing.T) {
 	}
 	if _, err := s.Checkpoint(ctx, CheckpointInput{RequestID: NewID(), TaskID: started.Mutation.ID, ExpectedVersion: completed.Version, Summary: "Reopen", NextAction: "Verify"}); err == nil {
 		t.Fatal("completed task changed")
+	}
+}
+
+func TestFinishBindsEvidenceToWorkingTree(t *testing.T) {
+	ctx := context.Background()
+	s := testStore(t)
+	write := func(path, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(s.Root, path)), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(s.Root, path), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("app.go", "package app\n")
+	unchanged, changed := testStart(t, s, "build"), testStart(t, s, "build")
+	for _, task := range []StartResult{unchanged, changed} {
+		in := testFinish(t, s, task.Mutation.ID, 1)
+		if _, err := s.Checkpoint(ctx, CheckpointInput{RequestID: NewID(), TaskID: task.Mutation.ID, ExpectedVersion: 1, Summary: "Tests pass", NextAction: "Finish", Evidence: in.Verification}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.Finish(ctx, testFinish(t, s, unchanged.Mutation.ID, 2)); err != nil {
+		t.Fatalf("evidence from the same working tree was rejected: %v", err)
+	}
+	write("app.go", "package app\n\n// Edited after the passing check.\n")
+	write("app_test.go", "package app\n")
+	write("tests/smoke.sh", "exit 0\n")
+	write("docs/test.md", "Not a test path.\n")
+	in := testFinish(t, s, changed.Mutation.ID, 2)
+	if _, err := s.Finish(ctx, in); err == nil || !strings.Contains(err.Error(), "v1") || !strings.Contains(err.Error(), "checkpoint 1") {
+		t.Fatalf("stale evidence accepted or not named: %v", err)
+	}
+	in.RequestID, in.Verification[0].ID = NewID(), "v2"
+	done, err := s.Finish(ctx, in)
+	if err != nil {
+		t.Fatalf("rerun evidence rejected: %v", err)
+	}
+	if strings.Join(done.ChangedTestFiles, ",") != "app_test.go,tests/smoke.sh" {
+		t.Fatalf("changed test files: %v", done.ChangedTestFiles)
+	}
+	history, err := s.History(ctx, changed.Mutation.ID, 0)
+	if err != nil || history[0].Context.Tree == "" || history[0].Context.Tree == history[1].Context.Tree {
+		t.Fatalf("checkpoint and finish trees not recorded: %v", err)
 	}
 }
 

@@ -30,7 +30,7 @@ Resolve and normalize the Git working-tree root. Bare and non-Git directories ar
 
 Runtime state lives at `.bearing/state.db`. Separate clones do not share it. Project scope means the current store's project, not a machine-wide memory pool. Branch changes retain this checkout's store. Explicit ref-based memory applicability is deferred.
 
-Capture the checkout path, HEAD, branch when known, dirty flag, and observation time. Known checkout/HEAD differences and dirty states require revalidation. A matching HEAD is not proof that uncommitted files are unchanged. Bearing captures Git metadata and explicitly selected Markdown documents. Explicit Git operations can also create and switch branches and commit staged content; source investigation remains in Gortex.
+Capture the checkout path, HEAD, branch when known, dirty flag, and observation time. Start, checkpoint, and finish also record `tree`: a Git tree hash of HEAD plus every non-ignored working file, untracked files included. Bearing builds it through a temporary index seeded from a copy of the user's index, so the user's staging area is never changed; Git stores blob objects for files it has not seen. Known checkout/HEAD differences and dirty states require revalidation. A matching HEAD is not proof that uncommitted files are unchanged; a matching tree is. Bearing captures Git metadata and explicitly selected Markdown documents. Explicit Git operations can also create and switch branches and commit staged content; source investigation remains in Gortex.
 
 ## Tasks and immutable checkpoints
 
@@ -75,7 +75,7 @@ MCP names use the `bearing_` prefix. Both interfaces call the same domain operat
 | `git` | Operation and its fields; expected index tree for commits | Repository state, trunk, branches, staged summary, operation result and warnings |
 | `rules` | No input | Complete engineering policy/workflow and identities |
 
-`remember.action` defaults to `save`. Supersede/retract require an existing ID, expected version, and reason. Document recall uses `document_ids` separately from memory query/IDs. Write receipts include request ID, affected ID/version, status, policy ID, and replay status, plus checkpoint/document IDs where relevant.
+`remember.action` defaults to `save`. Supersede/retract require an existing ID, expected version, and reason. Document recall uses `document_ids` separately from memory query/IDs. Write receipts include request ID, affected ID/version, status, policy ID, and replay status, plus checkpoint/document IDs where relevant. Finish receipts also list `changed_test_files`.
 
 MCP publishes precise input and output schemas. Tool success is `{result: ...}`; domain failure is `{error: ...}` with MCP `isError`. Structured output has a text fallback. The single typed SDK envelope is shared by all eight handlers to avoid duplicating schema and error logic. CLI JSON returns the result directly, or the same error envelope. Invalid protocol requests remain protocol/SDK validation errors.
 
@@ -91,7 +91,9 @@ Git writes are external operations, not SQLite receipt transactions. They have n
 
 ## Supported completion
 
-Finish has no separate acceptance results: each acceptance criterion passes when at least one passing verification item lists its ID in `acceptance_ids`. Verification includes a unique ID, description, source, outcome, acceptance IDs, an optional observation time, and an optional actual exit code. Outcomes are `pass`, `fail`, or `not_run`; an exit code must agree with the outcome. Blocking verification must pass. Agents do not submit checkout details: the finish checkpoint records the checkout path, HEAD, branch, dirty flag, and time that Bearing observed.
+Finish has no separate acceptance results: each acceptance criterion passes when at least one passing verification item lists its ID in `acceptance_ids`. Verification includes a unique ID, description, source, outcome, acceptance IDs, an optional observation time, and an optional actual exit code. Outcomes are `pass`, `fail`, or `not_run`; an exit code must agree with the outcome. Blocking verification must pass. Items of kind `command` must include the `command` text and, unless `not_run`, the exit code. Agents do not submit checkout details: the finish checkpoint records the checkout path, HEAD, branch, dirty flag, tree, and time that Bearing observed.
+
+Evidence saved in a checkpoint is bound to that checkpoint's tree. If a passing finish item reuses the ID of evidence whose latest saved record passed on a different tree, finish rejects it; a rerun is reported under a new evidence ID. Evidence saved before trees were recorded is not compared. The finish receipt lists `changed_test_files`: paths matching `*_test.go` or inside a `test/`, `tests/`, or `spec/` directory that differ between the task's start tree and the finish tree. Tasks started before trees were recorded have no baseline and no list.
 
 Review supplies a summary, has no unresolved findings, and includes the five checks `single_use`, `reuse`, `necessity`, `conventions`, and `minimality`. Each is `pass` or `not_applicable`; the latter needs a reason. Agents do not submit the policy ID; Bearing records the current one in the saved review. Research/spec tasks must include their final Markdown document of the corresponding kind in the finish request. A rejected finish names the criterion ID, evidence ID, or review check that failed. Checkpoints saved by earlier versions keep their `acceptance_results` and stay readable through history.
 

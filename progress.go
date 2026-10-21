@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -77,6 +78,9 @@ func (s *Store) saveProgress(ctx context.Context, in CheckpointInput, finish *Fi
 		if err != nil {
 			return err
 		}
+		if repo.Tree, err = workingTree(ctx, repo); err != nil {
+			return err
+		}
 		docs, err = s.captureDocuments(in.Documents)
 		return err
 	}, func(tx *sql.Tx) (Mutation, error) {
@@ -104,8 +108,12 @@ func (s *Store) saveProgress(ctx context.Context, in CheckpointInput, finish *Fi
 			docs[i].InputDocuments, docs[i].CreatedAt = task.InputDocuments, cp.CreatedAt
 			cp.DocumentIDs = append(cp.DocumentIDs, docs[i].ID)
 		}
+		var testFiles []string
 		if finish != nil {
 			if err := validateFinish(task, *finish); err != nil {
+				return Mutation{}, err
+			}
+			if err := staleEvidence(ctx, tx, task.ID, finish.Verification, repo.Tree); err != nil {
 				return Mutation{}, err
 			}
 			if task.Kind != "build" {
@@ -118,6 +126,9 @@ func (s *Store) saveProgress(ctx context.Context, in CheckpointInput, finish *Fi
 				if !hasDocument {
 					return Mutation{}, fail("invalid_input", "Finishing research or a spec requires saving its final Markdown document in this request.")
 				}
+			}
+			if testFiles, err = changedTestFiles(ctx, repo.Path, task.CreatedContext.Tree, repo.Tree); err != nil {
+				return Mutation{}, err
 			}
 			cp.Verification, cp.Review, cp.Limitations = finish.Verification, &Review{PolicyID: Rules().ID, ReviewInput: finish.Review}, finish.Limitations
 			in.Status = "completed"
@@ -147,8 +158,58 @@ func (s *Store) saveProgress(ctx context.Context, in CheckpointInput, finish *Fi
 		if _, err := tx.ExecContext(ctx, "UPDATE tasks SET status=?,version=?,data=? WHERE id=?", task.Status, task.Version, string(data), task.ID); err != nil {
 			return Mutation{}, err
 		}
-		return Mutation{ID: task.ID, Version: task.Version, CheckpointID: cp.ID, DocumentIDs: cp.DocumentIDs, Status: task.Status}, nil
+		return Mutation{ID: task.ID, Version: task.Version, CheckpointID: cp.ID, DocumentIDs: cp.DocumentIDs, ChangedTestFiles: testFiles, Status: task.Status}, nil
 	})
+}
+
+// staleEvidence rejects passing verification that reuses evidence which passed at an
+// earlier checkpoint on a different working tree. The latest record for an ID decides.
+// Evidence saved before trees were recorded has no tree and is not compared.
+func staleEvidence(ctx context.Context, tx *sql.Tx, taskID string, verification []Evidence, tree string) error {
+	rows, err := tx.QueryContext(ctx, "SELECT c.sequence, coalesce(json_extract(c.data,'$.context.tree'),''), coalesce(json_extract(e.value,'$.id'),''), coalesce(json_extract(e.value,'$.outcome'),'') FROM checkpoints c, json_each(c.data,'$.evidence') e WHERE c.task_id=? ORDER BY c.sequence", taskID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	type saved struct {
+		sequence int
+		tree     string
+	}
+	passed := map[string]saved{}
+	for rows.Next() {
+		var record saved
+		var id, outcome string
+		if err := rows.Scan(&record.sequence, &record.tree, &id, &outcome); err != nil {
+			return err
+		}
+		if outcome == "pass" {
+			passed[id] = record
+		} else {
+			delete(passed, id)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, item := range verification {
+		if record, ok := passed[item.ID]; ok && item.Outcome == "pass" && record.tree != "" && record.tree != tree {
+			return fail("invalid_input", fmt.Sprintf("Verification %s reuses evidence that passed at checkpoint %d, but the working tree has changed since. Rerun the check and report the new result under a new evidence ID.", item.ID, record.sequence))
+		}
+	}
+	return nil
+}
+
+// changedTestFiles lists test paths that differ between the task's start tree and the
+// finish tree, so a reviewer sees edited tests. Tasks started without a tree have no baseline.
+func changedTestFiles(ctx context.Context, root, start, finish string) ([]string, error) {
+	if start == "" {
+		return nil, nil
+	}
+	out, err := runGit(ctx, root, "diff-tree", "-r", "--name-only", "--no-renames", "-z", start, finish, "--", ":(glob)**/*_test.go", ":(glob)**/test/**", ":(glob)**/tests/**", ":(glob)**/spec/**")
+	if err != nil || len(out) == 0 {
+		return nil, err
+	}
+	return strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00"), nil
 }
 
 func validateFinish(task Task, in FinishInput) error {
@@ -186,6 +247,9 @@ func validateFinish(task Task, in FinishInput) error {
 		}
 		if item.ExitCode != nil && ((*item.ExitCode == 0) != (item.Outcome == "pass")) {
 			return fail("invalid_input", "Verification "+item.ID+" outcome disagrees with its exit code.")
+		}
+		if item.Kind == "command" && (strings.TrimSpace(item.Command) == "" || (item.ExitCode == nil && item.Outcome != "not_run")) {
+			return fail("invalid_input", "Command verification "+item.ID+" needs the command text and, once run, its exit code.")
 		}
 		if item.Blocking && item.Outcome != "pass" {
 			return fail("invalid_input", "Blocking verification "+item.ID+" has not passed.")
