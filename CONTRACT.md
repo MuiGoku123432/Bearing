@@ -135,7 +135,7 @@ bearing restore --input /path/backup.db --repo /empty/checkout
 
 Put flags before positional IDs. JSON input rejects unknown fields, non-object input, and trailing JSON. `--input -` reads stdin. For task and memory writes, CLI can generate a missing request ID and prints it to stderr before writing; automation should supply and retain its own IDs. Git requests use state preconditions instead of request IDs. Exit codes: 0 success, 2 invalid input/missing state or record, 3 conflict, 4 busy/uncertain outcome, 1 other failures. MCP stdout is reserved for protocol traffic.
 
-Rules/version/help work without state. Init creates only the state directory/database and missing ignore entry. Setup requires a Git checkout and writes a new directory with configuration/instruction fragments, a skill, canonical policy/workflow, and application instructions. It never overwrites existing client settings or configures/tracks Gortex automatically.
+Rules/version/help work without state. Init creates only the state directory, its self-ignoring `.bearing/.gitignore`, and the database; it does not change tracked files. Setup requires a Git checkout and writes a new directory with configuration/instruction fragments, a skill, canonical policy/workflow, and application instructions. It never overwrites existing client settings or configures/tracks Gortex automatically.
 
 The installed host must load the policy before work and after context resets. The skill uses the maintained workflow, not the research folder. Setup supports Codex, Claude Code, and OpenCode configuration fragments; their behavioral acceptance is tracked separately.
 

@@ -57,12 +57,15 @@ func TestRepositoryBindingAndWorktreeIsolation(t *testing.T) {
 }
 
 func TestInitRefusesSymlinkedStateAndIgnore(t *testing.T) {
-	for _, name := range []string{".bearing", ".gitignore"} {
+	for _, name := range []string{".bearing", filepath.Join(".bearing", ".gitignore")} {
 		root := testRepo(t)
 		outside := t.TempDir()
-		if name == ".gitignore" {
+		if name != ".bearing" {
 			outside = filepath.Join(outside, "ignore")
 			if err := os.WriteFile(outside, []byte("preserve"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Mkdir(filepath.Join(root, ".bearing"), 0700); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -72,6 +75,9 @@ func TestInitRefusesSymlinkedStateAndIgnore(t *testing.T) {
 		if s, err := Init(context.Background(), root); err == nil {
 			s.Close()
 			t.Fatalf("followed symlink: %s", name)
+		}
+		if data, err := os.ReadFile(outside); name != ".bearing" && (err != nil || string(data) != "preserve") {
+			t.Fatalf("wrote through symlink: %q %v", data, err)
 		}
 	}
 }

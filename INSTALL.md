@@ -45,7 +45,7 @@ bearing install --repo /path/to/project --host codex --dry-run
 bearing install --repo /path/to/project --host codex
 ```
 
-Run the command once for each desired client. A preview reads the project and renders temporary setup files but does not initialize or modify the checkout. Applying it initializes `.bearing/state.db` and its ignore rule, then installs these files:
+Run the command once for each desired client. A preview reads the project and renders temporary setup files but does not initialize or modify the checkout. Applying it initializes `.bearing/state.db` (the directory ignores itself), then installs these files:
 
 | Client | Project MCP config | Instruction entry point | Workflow skill |
 | --- | --- | --- | --- |

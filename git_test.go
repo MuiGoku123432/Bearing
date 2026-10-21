@@ -24,7 +24,7 @@ func gitTestStore(t *testing.T) *Store {
 	for _, args := range [][]string{
 		{"config", "user.name", "Bearing Test"}, {"config", "user.email", "bearing@example.invalid"},
 		{"config", "core.hooksPath", "/dev/null"}, {"config", "commit.gpgsign", "false"},
-		{"add", ".gitignore"}, {"commit", "-qm", "chore: initialize fixture"},
+		{"commit", "--allow-empty", "-qm", "chore: initialize fixture"},
 	} {
 		testGit(t, s.Root, args...)
 	}

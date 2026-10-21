@@ -188,8 +188,12 @@ func TestInitializationAndStrictInputs(t *testing.T) {
 	}
 	defer s.Close()
 	data, err := os.ReadFile(filepath.Join(root, ".gitignore"))
-	if err != nil || string(data) != "existing\n/.bearing/\n" {
-		t.Fatalf("ignore: %q %v", data, err)
+	if err != nil || string(data) != "existing" {
+		t.Fatalf("tracked ignore rules changed: %q %v", data, err)
+	}
+	status, err := exec.Command("git", "-C", root, "status", "--porcelain", "--untracked-files=all").Output()
+	if err != nil || string(status) != "?? .gitignore\n" {
+		t.Fatalf("state is visible to Git: %q %v", status, err)
 	}
 	for _, input := range []string{"null", "[]", "{\"unknown\":true}", "{} {}", strings.Repeat(" ", 65537)} {
 		var target StartInput

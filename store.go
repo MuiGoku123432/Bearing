@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -46,44 +45,19 @@ func Init(ctx context.Context, repo string) (*Store, error) {
 		return nil, err
 	}
 	// Ignore state before creating it so repository observations exclude the database.
-	ignore := filepath.Join(r.Path, ".gitignore")
-	if info, err := os.Lstat(ignore); err == nil && info.Mode()&os.ModeSymlink != 0 {
-		return nil, fail("invalid_input", "Refusing to update a symlinked .gitignore.")
-	} else if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	root, err := os.OpenRoot(r.Path)
+	// The state directory ignores itself, so initialization leaves tracked files unchanged.
+	dir, err := os.OpenRoot(filepath.Dir(path))
 	if err != nil {
 		return nil, err
 	}
-	defer root.Close()
-	data, err := root.ReadFile(".gitignore")
-	if err != nil && !os.IsNotExist(err) {
+	defer dir.Close()
+	if info, err := dir.Lstat(".gitignore"); err == nil && !info.Mode().IsRegular() {
+		return nil, fail("invalid_input", "Refusing to replace .bearing/.gitignore because it is not a regular file.")
+	} else if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	found := false
-	for _, line := range strings.Split(string(data), "\n") {
-		if strings.TrimSpace(line) == "/.bearing/" || strings.TrimSpace(line) == ".bearing/" {
-			found = true
-		}
-	}
-	if !found {
-		f, err := root.OpenFile(".gitignore", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			return nil, err
-		}
-		prefix := ""
-		if len(data) > 0 && data[len(data)-1] != '\n' {
-			prefix = "\n"
-		}
-		_, writeErr := f.WriteString(prefix + "/.bearing/\n")
-		closeErr := f.Close()
-		if writeErr != nil {
-			return nil, writeErr
-		}
-		if closeErr != nil {
-			return nil, closeErr
-		}
+	if err = dir.WriteFile(".gitignore", []byte("*\n"), 0600); err != nil {
+		return nil, err
 	}
 	return openStore(ctx, r.Path, true)
 }

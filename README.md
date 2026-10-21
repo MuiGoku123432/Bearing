@@ -17,7 +17,7 @@ CGO_ENABLED=0 go build -o bin/bearing ./cmd/bearing
 ./bin/bearing rules
 ```
 
-`init` creates `.bearing/state.db` in the Git checkout and adds `/.bearing/` to its ignore rules. Separate worktrees have separate databases. State stays local; Bearing does not send documents to a model or external service.
+`init` creates `.bearing/state.db` in the Git checkout. The `.bearing/` directory ignores itself, so tracked files such as `.gitignore` stay unchanged. Separate worktrees have separate databases. State stays local; Bearing does not send documents to a model or external service.
 
 Start a task with a JSON file or stdin:
 

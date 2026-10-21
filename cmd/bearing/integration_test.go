@@ -42,8 +42,7 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 		{"config", "user.email", "bearing@example.invalid"},
 		{"config", "core.hooksPath", os.DevNull},
 		{"config", "commit.gpgsign", "false"},
-		{"add", ".gitignore"},
-		{"commit", "-qm", "chore: initialize fixture"},
+		{"commit", "--allow-empty", "-qm", "chore: initialize fixture"},
 	} {
 		if out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
 			t.Fatalf("Git fixture: %s %v", out, err)
