@@ -148,6 +148,20 @@ Reviewed on 21 October 2026 for [multi-angle session review](10-session-review.m
 | H05 | [OpenCode agents](https://opencode.ai/docs/agents/) | Full text; subagents, permissions, model per agent |
 | H06 | [OpenCode plugins](https://opencode.ai/docs/plugins/) | Search excerpts; `session.idle` event |
 
+## Session review trial
+
+Run on 21 October 2026 for the [session review trial](11-session-review-trial.md). These are local observations, not published sources.
+
+| ID | Source | Inspection and use |
+| --- | --- | --- |
+| X01 | Trial repository `~/repos/mine/GoApps/bearing-review-trial` (synthetic data, 7 task branches, Bearing tasks with recorded `go test` output) | Seeded defects and clean control under review |
+| X02 | Trial kit `~/repos/mine/GoApps/bearing-review-trial-kit`: `make_task.py`, `tasks/*.json`, `bearing-review-panel/SKILL.md`, `run.sh` | Exact task content, panel skill, and run procedure |
+| X03 | Raw run outputs `results.tsv` and `runs/*-claude-*.json` in the kit | Findings, `modelUsage` tokens, `total_cost_usd`, permission denials, wall time per cell |
+| X04 | Claude Code 2.1.299 (`claude --version`), model `claude-opus-5-5`, `claude -p --output-format json` | Host and model for all 14 measured cells |
+| X05 | `git status --porcelain` after each cell | Whether any review edited files |
+
+Codex cells were not run; Codex CLI was not installed on the trial machine. The raw outputs live outside this repository and may be removed with the disposable trial.
+
 ## Local evidence and user requirements
 
 | Evidence | Observation |

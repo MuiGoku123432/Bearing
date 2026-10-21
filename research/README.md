@@ -32,6 +32,7 @@ This folder contains research findings, design recommendations, and tests needed
 | [Evaluation](07-evaluation.md) | How will we know the tool is correct and actually useful? |
 | [Backlog planning](09-backlog-planning.md) | How should agents groom epics, stories, tasks, and estimates in Azure Boards and GitHub? (21 October 2026) |
 | [Session review](10-session-review.md) | Should a multi-agent, multi-angle review run before a session's work is finished? (21 October 2026) |
+| [Session review trial](11-session-review-trial.md) | Did a reviewer panel catch more than single self-review in spike S1, and at what cost? (21 October 2026) |
 | [Sources](SOURCES.md) | Which primary sources and local observations support the findings? |
 
 ## Product boundary
