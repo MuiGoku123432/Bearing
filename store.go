@@ -32,6 +32,18 @@ CREATE TABLE write_receipts (request_id TEXT PRIMARY KEY, operation TEXT NOT NUL
 PRAGMA user_version=1;
 `
 
+const schemaVersion = 2
+
+// Version 2 stems English search words so "retry" finds "retrying". FTS5 fixes the
+// tokenizer at creation, so the search table is rebuilt from active memories.
+const migrateStemmedSearch = `
+DROP TABLE memory_search;
+CREATE VIRTUAL TABLE memory_search USING fts5(id UNINDEXED, claim, evidence, tokenize='porter unicode61');
+INSERT INTO memory_search(id,claim,evidence) SELECT id,json_extract(data,'$.claim'),json_extract(data,'$.source') FROM memories WHERE status='active';
+UPDATE store_meta SET version=2;
+PRAGMA user_version=2;
+`
+
 func Init(ctx context.Context, repo string) (*Store, error) {
 	r, err := ResolveRepository(ctx, repo)
 	if err != nil {
@@ -114,18 +126,19 @@ func openStore(ctx context.Context, root string, initialize bool) (*Store, error
 	if err = db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
 		return nil, err
 	}
-	if version > 1 || version < 0 {
+	if version > schemaVersion || version < 0 {
 		return nil, fail("unsupported_schema", "This database needs a different Bearing version. It was not migrated.")
 	}
 	if version == 0 && !initialize {
 		return nil, fail("not_initialized", "Database initialization is incomplete. Run bearing init.")
 	}
-	if version == 0 {
+	if version < schemaVersion {
 		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
 		defer tx.Rollback()
+		// Read again under the write lock so concurrent processes migrate once.
 		if err = tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
 			return nil, err
 		}
@@ -141,6 +154,12 @@ func openStore(ctx context.Context, root string, initialize bool) (*Store, error
 				return nil, err
 			}
 			if _, err = tx.ExecContext(ctx, "INSERT INTO store_meta(id,version) VALUES(?,1)", NewID()); err != nil {
+				return nil, err
+			}
+			version = 1
+		}
+		if version == 1 {
+			if _, err = tx.ExecContext(ctx, migrateStemmedSearch); err != nil {
 				return nil, err
 			}
 		}

@@ -225,3 +225,73 @@ func TestInitializationAndStrictInputs(t *testing.T) {
 		t.Fatal("newer schema accepted")
 	}
 }
+
+func TestVersionOneStoreMigratesToStemmedSearch(t *testing.T) {
+	ctx := context.Background()
+	s := testStore(t)
+	if _, err := s.Remember(ctx, RememberInput{Kind: "lesson", Claim: "Retrying checkpoints keeps their receipts", Basis: "observed", Source: "Test"}); err != nil {
+		t.Fatal(err)
+	}
+	// Rebuild the version 1 search table, which did not stem words.
+	if _, err := s.DB.Exec(`DROP TABLE memory_search;
+CREATE VIRTUAL TABLE memory_search USING fts5(id UNINDEXED, claim, evidence);
+INSERT INTO memory_search SELECT id,json_extract(data,'$.claim'),json_extract(data,'$.source') FROM memories;
+UPDATE store_meta SET version=1;
+PRAGMA user_version=1;`); err != nil {
+		t.Fatal(err)
+	}
+	if result, err := s.Recall(ctx, RecallInput{Query: "retry"}); err != nil || len(result.Memories) != 0 {
+		t.Fatalf("version 1 fixture already stems: %+v %v", result, err)
+	}
+	backup := filepath.Join(t.TempDir(), "v1.db")
+	if err := s.Backup(ctx, backup); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	opened := make(chan *Store, 2)
+	failed := make(chan error, 2)
+	var group sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			store, err := Open(ctx, s.Root)
+			if err != nil {
+				failed <- err
+				return
+			}
+			opened <- store
+		}()
+	}
+	group.Wait()
+	close(opened)
+	close(failed)
+	for err := range failed {
+		t.Fatalf("concurrent migration: %v", err)
+	}
+	for store := range opened {
+		t.Cleanup(func() { store.Close() })
+	}
+	restored := testRepo(t)
+	if err := Restore(ctx, restored, backup); err != nil {
+		t.Fatal(err)
+	}
+	for _, root := range []string{s.Root, restored} {
+		store, err := Open(ctx, root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var version, metaVersion int
+		if err := store.DB.QueryRow("SELECT version FROM store_meta").Scan(&metaVersion); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.DB.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 2 || metaVersion != 2 {
+			t.Fatalf("schema version %d/%d: %v", version, metaVersion, err)
+		}
+		result, err := store.Recall(ctx, RecallInput{Query: "retry"})
+		store.Close()
+		if err != nil || len(result.Memories) != 1 {
+			t.Fatalf("stemmed search after migration: %+v %v", result, err)
+		}
+	}
+}

@@ -108,7 +108,7 @@ Finish requires passing acceptance evidence and the five self-review checks: sin
 - SQLite uses WAL, foreign keys, full synchronous writes, and bounded lock waits. Tasks, checkpoints, document snapshots, memory corrections, and request receipts use transactions.
 - Task and memory writes accept request IDs; Bearing generates one when it is omitted and returns it. Updates require current versions. Retry identical uncertain database requests with the same ID. Use a new ID for a new action. Git writes use state preconditions instead; inspect after an uncertain Git result before retrying.
 - Memory is explicitly saved with a claim, source, basis, scope, and optional path/symbol anchors. Corrected and retracted claims remain auditable but leave normal recall.
-- Recall filters applicability before FTS5 ranking. Default memory recall returns at most five items within a 12,000-byte record budget. Resume is bounded to roughly 32,000 JSON bytes including full policy, with visible omissions.
+- Recall filters applicability before FTS5 ranking. English stemming matches word forms such as `retry` and `retrying`. Default memory recall returns at most five items within a 12,000-byte record budget. Resume is bounded to roughly 32,000 JSON bytes including full policy, with visible omissions.
 - These are byte budgets, not measured model token counts. No embedding service, transcript crawler, second code index, or background model loop is included.
 - Restoring into a new checkout preserves provenance and warns about checkout changes. Project-scoped claims can be reconsidered there; old checkout-scoped claims are excluded from ordinary recall.
 
