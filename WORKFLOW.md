@@ -24,7 +24,7 @@ An input document that changed on disk needs reconciliation before executing its
 
 ## Verify and preserve
 
-Run the relevant real checks after the last relevant edit. Record actual command outcomes or concrete manual observations and their Git context. Suggested test targets are not passing tests. Keep failed attempts as history; do not repeat them without a reason.
+Run the relevant real checks after the last relevant edit or commit. Record actual command outcomes or concrete manual observations; Bearing records the Git context itself. Suggested test targets are not passing tests. Keep failed attempts as history; do not repeat them without a reason.
 
 Checkpoint after meaningful progress, a changed approach, a blocker, or a handoff. Save durable decisions promptly under the active Gortex memory policy; reference authoritative Gortex memories rather than making competing copies. Use Bearing memory for Bearing-owned claims with scope and evidence.
 

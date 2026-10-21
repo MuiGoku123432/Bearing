@@ -29,17 +29,17 @@ type Task struct {
 	CreatedContext     Repository  `json:"created_context"`
 }
 
+// Evidence is agent-reported; the checkpoint that stores it records Bearing's own checkout context.
 type Evidence struct {
-	ID            string     `json:"id"`
-	Kind          string     `json:"kind"`
-	Description   string     `json:"description"`
-	Source        string     `json:"source"`
-	Outcome       string     `json:"outcome"`
-	ExitCode      *int       `json:"exit_code,omitempty"`
-	ObservedAt    string     `json:"observed_at"`
-	Context       Repository `json:"context"`
-	AcceptanceIDs []string   `json:"acceptance_ids"`
-	Blocking      bool       `json:"blocking,omitempty"`
+	ID            string   `json:"id"`
+	Kind          string   `json:"kind"`
+	Description   string   `json:"description"`
+	Source        string   `json:"source"`
+	Outcome       string   `json:"outcome"`
+	ExitCode      *int     `json:"exit_code,omitempty"`
+	ObservedAt    string   `json:"observed_at,omitempty"`
+	AcceptanceIDs []string `json:"acceptance_ids"`
+	Blocking      bool     `json:"blocking,omitempty"`
 }
 
 type AcceptanceResult struct {

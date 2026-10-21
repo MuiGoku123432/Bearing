@@ -10,16 +10,12 @@ import (
 
 func testFinish(t *testing.T, s *Store, taskID string, version int) FinishInput {
 	t.Helper()
-	repo, err := ResolveRepository(context.Background(), s.Root)
-	if err != nil {
-		t.Fatal(err)
-	}
 	checks := map[string]ReviewCheck{}
 	for _, name := range []string{"single_use", "reuse", "necessity", "conventions", "minimality"} {
 		checks[name] = ReviewCheck{Status: "pass"}
 	}
 	zero := 0
-	return FinishInput{RequestID: NewID(), TaskID: taskID, ExpectedVersion: version, Summary: "Verified the intended result", AcceptanceResults: []AcceptanceResult{{ID: "a1", Status: "pass", EvidenceIDs: []string{"v1"}}}, Verification: []Evidence{{ID: "v1", Kind: "test", Description: "Run the relevant acceptance check", Source: "go test ./...", Outcome: "pass", ExitCode: &zero, ObservedAt: repo.CapturedAt, Context: repo, AcceptanceIDs: []string{"a1"}, Blocking: true}}, Review: Review{PolicyID: Rules().ID, Summary: "Reviewed the smallest change and existing code", Checks: checks}}
+	return FinishInput{RequestID: NewID(), TaskID: taskID, ExpectedVersion: version, Summary: "Verified the intended result", AcceptanceResults: []AcceptanceResult{{ID: "a1", Status: "pass", EvidenceIDs: []string{"v1"}}}, Verification: []Evidence{{ID: "v1", Kind: "test", Description: "Run the relevant acceptance check", Source: "go test ./...", Outcome: "pass", ExitCode: &zero, AcceptanceIDs: []string{"a1"}, Blocking: true}}, Review: Review{PolicyID: Rules().ID, Summary: "Reviewed the smallest change and existing code", Checks: checks}}
 }
 
 func TestResearchSpecBuildLineage(t *testing.T) {
@@ -72,7 +68,7 @@ func TestResearchSpecBuildLineage(t *testing.T) {
 }
 
 func TestFinishCannotSkipEvidenceOrReview(t *testing.T) {
-	for _, scenario := range []string{"no_results", "bad_evidence", "failed_check", "unreviewed", "unresolved", "old_policy", "wrong_commit", "exit_mismatch", "research_without_document"} {
+	for _, scenario := range []string{"no_results", "bad_evidence", "failed_check", "unreviewed", "unresolved", "old_policy", "exit_mismatch", "research_without_document"} {
 		t.Run(scenario, func(t *testing.T) {
 			s := testStore(t)
 			kind := "build"
@@ -94,8 +90,6 @@ func TestFinishCannotSkipEvidenceOrReview(t *testing.T) {
 				in.Review.Unresolved = []string{"known defect"}
 			case "old_policy":
 				in.Review.PolicyID = "old"
-			case "wrong_commit":
-				in.Verification[0].Context.Head = "another-commit"
 			case "exit_mismatch":
 				one := 1
 				in.Verification[0].ExitCode = &one
@@ -132,6 +126,10 @@ func TestRequirementHistoryAndExplicitTaskSelection(t *testing.T) {
 	completed, err := s.Finish(ctx, in)
 	if err != nil || completed.Status != "completed" {
 		t.Fatalf("valid finish: %+v %v", completed, err)
+	}
+	final, err := s.History(ctx, started.Mutation.ID, 0)
+	if err != nil || final[0].Context.Path != s.Root || final[0].Context.CapturedAt == "" {
+		t.Fatalf("finish did not record Bearing's checkout context: %v", err)
 	}
 	replayed, err := s.Finish(ctx, in)
 	if err != nil || !replayed.Replayed {

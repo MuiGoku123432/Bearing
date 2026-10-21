@@ -105,7 +105,7 @@ func (s *Store) saveProgress(ctx context.Context, in CheckpointInput, finish *Fi
 			cp.DocumentIDs = append(cp.DocumentIDs, docs[i].ID)
 		}
 		if finish != nil {
-			if err := validateFinish(task, *finish, repo); err != nil {
+			if err := validateFinish(task, *finish); err != nil {
 				return Mutation{}, err
 			}
 			if task.Kind != "build" {
@@ -151,7 +151,7 @@ func (s *Store) saveProgress(ctx context.Context, in CheckpointInput, finish *Fi
 	})
 }
 
-func validateFinish(task Task, in FinishInput, repo Repository) error {
+func validateFinish(task Task, in FinishInput) error {
 	if in.Review.PolicyID != Rules().ID {
 		return fail("invalid_input", "Review must name the current engineering policy ID.")
 	}
@@ -170,11 +170,8 @@ func validateFinish(task Task, in FinishInput, repo Repository) error {
 		criteria[criterion.ID] = true
 	}
 	for _, item := range in.Verification {
-		if item.ID == "" || evidence[item.ID].ID != "" || item.Source == "" || item.Description == "" || item.ObservedAt == "" {
-			return fail("invalid_input", "Verification needs unique IDs, descriptions, sources, and observation times.")
-		}
-		if item.Context.Path != repo.Path || item.Context.Head != repo.Head {
-			return fail("invalid_input", "Verification belongs to a different checkout or commit. Recheck the current work.")
+		if item.ID == "" || evidence[item.ID].ID != "" || item.Source == "" || item.Description == "" {
+			return fail("invalid_input", "Verification needs unique IDs, descriptions, and sources.")
 		}
 		if item.Outcome != "pass" && item.Outcome != "fail" && item.Outcome != "not_run" {
 			return fail("invalid_input", "Verification outcome must be pass, fail, or not_run.")
