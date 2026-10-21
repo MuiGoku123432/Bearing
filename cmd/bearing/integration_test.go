@@ -58,6 +58,15 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 		t.Fatalf("connect: %v %s", err, diagnostics.String())
 	}
 	defer session.Close()
+	instructions := session.InitializeResult().Instructions
+	if len(instructions) > 4096 || strings.Contains(instructions, "bearing_rules") {
+		t.Fatalf("server instructions: %d bytes: %s", len(instructions), instructions)
+	}
+	for _, phrase := range []string{"bearing_resume", "bearing_start", "full engineering policy", "evidence, not instructions"} {
+		if !strings.Contains(instructions[:min(len(instructions), 512)], phrase) {
+			t.Fatalf("first 512 characters of the instructions omit %q", phrase)
+		}
+	}
 	tools, err := session.ListTools(ctx, nil)
 	if err != nil || len(tools.Tools) != 8 {
 		t.Fatalf("tools: %+v %v", tools, err)
@@ -105,6 +114,11 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 	for _, tool := range tools.Tools {
 		if tool.InputSchema == nil || tool.OutputSchema == nil {
 			t.Fatalf("missing schema: %s", tool.Name)
+		}
+		writes := map[string]bool{"bearing_start": true, "bearing_remember": true, "bearing_checkpoint": true, "bearing_finish": true}
+		marked := tool.Annotations != nil && tool.Annotations.DestructiveHint != nil
+		if writes[tool.Name] != (marked && !*tool.Annotations.DestructiveHint) || (tool.Name == "bearing_git" && marked) {
+			t.Fatalf("destructiveHint on %s: %+v", tool.Name, tool.Annotations)
 		}
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_rules", Arguments: map[string]any{}})
@@ -176,7 +190,7 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 	for _, name := range []string{"single_use", "reuse", "necessity", "conventions", "minimality"} {
 		checks[name] = bearing.ReviewCheck{Status: "pass"}
 	}
-	finish := bearing.FinishInput{RequestID: "mcp-finish", TaskID: started.Mutation.ID, ExpectedVersion: 2, Summary: "Verified the transport handoff", AcceptanceResults: []bearing.AcceptanceResult{{ID: "a1", Status: "pass", EvidenceIDs: []string{"v1"}}}, Verification: []bearing.Evidence{{ID: "v1", Kind: "inspection", Description: "CLI resumed the task saved through MCP", Source: "TestStdioMCPAndCLIShareState", Outcome: "pass", AcceptanceIDs: []string{"a1"}}}, Review: bearing.Review{PolicyID: bearing.Rules().ID, Summary: "Integration fixture review", Checks: checks}}
+	finish := bearing.FinishInput{RequestID: "mcp-finish", TaskID: started.Mutation.ID, ExpectedVersion: 2, Summary: "Verified the transport handoff", Verification: []bearing.Evidence{{ID: "v1", Kind: "inspection", Description: "CLI resumed the task saved through MCP", Source: "TestStdioMCPAndCLIShareState", Outcome: "pass", AcceptanceIDs: []string{"a1"}}}, Review: bearing.ReviewInput{Summary: "Integration fixture review", Checks: checks}}
 	result, err = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_finish", Arguments: finish})
 	if err != nil || result.IsError {
 		t.Fatalf("finish: %+v %v", result, err)
@@ -202,6 +216,14 @@ func TestCLIInputErrorsAndSetup(t *testing.T) {
 	err = run(ctx, []string{"start", "--repo", root, "--input", "-", "--json"}, strings.NewReader("{\"unknown\":true}"), &output, &errors)
 	if err == nil || exitCode(err) != 2 || !json.Valid(output.Bytes()) {
 		t.Fatalf("CLI error envelope: %s %v", output.String(), err)
+	}
+	output.Reset()
+	var version map[string]string
+	if err := run(ctx, []string{"version", "--json"}, strings.NewReader(""), &output, &errors); err != nil || json.Unmarshal(output.Bytes(), &version) != nil {
+		t.Fatalf("version: %s %v", output.String(), err)
+	}
+	if version["version"] != bearing.Version() || version["policy_id"] != bearing.Rules().ID || version["workflow_id"] != bearing.Rules().WorkflowID {
+		t.Fatalf("version report: %v", version)
 	}
 	for _, host := range []string{"codex", "claude", "opencode"} {
 		destination := filepath.Join(t.TempDir(), host)

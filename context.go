@@ -139,7 +139,10 @@ func (s *Store) Resume(ctx context.Context, id string) (Context, error) {
 		return out, err
 	}
 	out.Memories, out.Omitted = memories.Memories, out.Omitted+memories.Omitted
-	out.Warnings = append(out.Warnings, memories.Warnings...)
+	// The zero-result hint is for explicit recall, not for every resume without memories.
+	if len(memories.Memories) > 0 || memories.Omitted > 0 {
+		out.Warnings = append(out.Warnings, memories.Warnings...)
+	}
 	if out.Next == "" {
 		out.Next = "Use the saved requirements and native Gortex tools to choose the next concrete action."
 	}

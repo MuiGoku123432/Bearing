@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -74,6 +75,63 @@ func TestInitRefusesLinkedWorktree(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(linked, ".bearing")); !os.IsNotExist(err) {
 		t.Fatal("state created in a linked worktree")
+	}
+}
+
+func TestWorkingTreeHashCoversUncommittedFiles(t *testing.T) {
+	ctx := context.Background()
+	s := gitTestStore(t)
+	if err := os.WriteFile(filepath.Join(s.Root, "tracked.txt"), []byte("committed\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, s.Root, "add", "tracked.txt")
+	testGit(t, s.Root, "commit", "-qm", "chore: add tracked file")
+	if err := os.WriteFile(filepath.Join(s.Root, ".git", "info", "exclude"), []byte("build.out\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	hash := func() string {
+		t.Helper()
+		repo, err := ResolveRepository(ctx, s.Root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		index, _ := os.ReadFile(filepath.Join(s.Root, ".git", "index"))
+		tree, err := workingTree(ctx, repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if after, _ := os.ReadFile(filepath.Join(s.Root, ".git", "index")); string(after) != string(index) {
+			t.Fatal("hashing the working tree changed the user's index")
+		}
+		return tree
+	}
+	clean := hash()
+	if clean != testGit(t, s.Root, "rev-parse", "HEAD^{tree}") {
+		t.Fatal("a clean checkout should hash to the HEAD tree; Bearing state must be excluded")
+	}
+	if err := os.WriteFile(filepath.Join(s.Root, "tracked.txt"), []byte("edited, not staged\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	dirty := hash()
+	if dirty == clean || testGit(t, s.Root, "diff", "--cached", "--name-only") != "" {
+		t.Fatal("an unstaged edit did not change the tree, or it was staged")
+	}
+	testGit(t, s.Root, "add", "tracked.txt")
+	if hash() != dirty {
+		t.Fatal("staging alone changed the working-tree hash")
+	}
+	if err := os.WriteFile(filepath.Join(s.Root, "new.txt"), []byte("untracked\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	untracked := hash()
+	if untracked == dirty || strings.Contains(testGit(t, s.Root, "status", "--porcelain"), "A  new.txt") {
+		t.Fatal("an untracked file did not change the tree, or it was staged")
+	}
+	if err := os.WriteFile(filepath.Join(s.Root, "build.out"), []byte("ignored\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if hash() != untracked {
+		t.Fatal("an ignored file changed the tree")
 	}
 }
 

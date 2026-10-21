@@ -1,11 +1,13 @@
 package bearing
 
 // Repository is an observation, not proof that code or evidence is current.
+// Tree is set at start, checkpoint, and finish; it hashes HEAD plus non-ignored working files.
 type Repository struct {
 	Path       string `json:"path"`
 	Head       string `json:"head,omitempty"`
 	Branch     string `json:"branch,omitempty"`
 	Dirty      bool   `json:"dirty"`
+	Tree       string `json:"tree,omitempty"`
 	CapturedAt string `json:"captured_at"`
 }
 
@@ -32,9 +34,10 @@ type Task struct {
 // Evidence is agent-reported; the checkpoint that stores it records Bearing's own checkout context.
 type Evidence struct {
 	ID            string   `json:"id"`
-	Kind          string   `json:"kind"`
+	Kind          string   `json:"kind" jsonschema:"command for any check run as a command, tests included; otherwise for example inspection or manual"`
 	Description   string   `json:"description"`
 	Source        string   `json:"source"`
+	Command       string   `json:"command,omitempty" jsonschema:"Exact command text; required with exit_code when kind is command"`
 	Outcome       string   `json:"outcome"`
 	ExitCode      *int     `json:"exit_code,omitempty"`
 	ObservedAt    string   `json:"observed_at,omitempty"`
@@ -42,6 +45,7 @@ type Evidence struct {
 	Blocking      bool     `json:"blocking,omitempty"`
 }
 
+// AcceptanceResult is kept so finishes saved before results were derived from verification stay readable.
 type AcceptanceResult struct {
 	ID          string   `json:"id"`
 	Status      string   `json:"status"`
@@ -53,11 +57,16 @@ type ReviewCheck struct {
 	Reason string `json:"reason,omitempty"`
 }
 
-type Review struct {
-	PolicyID   string                 `json:"policy_id"`
+type ReviewInput struct {
 	Summary    string                 `json:"summary"`
 	Checks     map[string]ReviewCheck `json:"checks"`
 	Unresolved []string               `json:"unresolved,omitempty"`
+}
+
+// Review is the saved review; Bearing records the policy it was checked against.
+type Review struct {
+	PolicyID string `json:"policy_id"`
+	ReviewInput
 }
 
 type TaskUpdate struct {
@@ -134,26 +143,26 @@ type CheckpointInput struct {
 }
 
 type FinishInput struct {
-	RequestID         string             `json:"request_id,omitempty"`
-	TaskID            string             `json:"task_id"`
-	ExpectedVersion   int                `json:"expected_version"`
-	Summary           string             `json:"summary"`
-	AcceptanceResults []AcceptanceResult `json:"acceptance_results"`
-	Verification      []Evidence         `json:"verification"`
-	Review            Review             `json:"review"`
-	Documents         []DocumentInput    `json:"documents,omitempty"`
-	Limitations       []string           `json:"limitations,omitempty"`
+	RequestID       string          `json:"request_id,omitempty"`
+	TaskID          string          `json:"task_id"`
+	ExpectedVersion int             `json:"expected_version"`
+	Summary         string          `json:"summary"`
+	Verification    []Evidence      `json:"verification"`
+	Review          ReviewInput     `json:"review"`
+	Documents       []DocumentInput `json:"documents,omitempty"`
+	Limitations     []string        `json:"limitations,omitempty"`
 }
 
 type Mutation struct {
-	RequestID    string   `json:"request_id"`
-	ID           string   `json:"id"`
-	Version      int      `json:"version"`
-	CheckpointID string   `json:"checkpoint_id,omitempty"`
-	DocumentIDs  []string `json:"document_ids,omitempty"`
-	Status       string   `json:"status"`
-	Replayed     bool     `json:"replayed"`
-	PolicyID     string   `json:"policy_id"`
+	RequestID        string   `json:"request_id"`
+	ID               string   `json:"id"`
+	Version          int      `json:"version"`
+	CheckpointID     string   `json:"checkpoint_id,omitempty"`
+	DocumentIDs      []string `json:"document_ids,omitempty"`
+	ChangedTestFiles []string `json:"changed_test_files,omitempty"`
+	Status           string   `json:"status"`
+	Replayed         bool     `json:"replayed"`
+	PolicyID         string   `json:"policy_id"`
 }
 
 type Context struct {

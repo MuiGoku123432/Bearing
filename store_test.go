@@ -2,6 +2,8 @@ package bearing
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -223,6 +225,8 @@ func TestInitializationAndStrictInputs(t *testing.T) {
 	if newer, err := Open(ctx, root); err == nil {
 		newer.Close()
 		t.Fatal("newer schema accepted")
+	} else if !strings.Contains(err.Error(), "version 99") || !strings.Contains(err.Error(), fmt.Sprintf("up to %d", schemaVersion)) {
+		t.Fatalf("refusal does not name both schema versions: %v", err)
 	}
 }
 
@@ -271,6 +275,23 @@ PRAGMA user_version=1;`); err != nil {
 	}
 	for store := range opened {
 		t.Cleanup(func() { store.Close() })
+	}
+	backups, _ := filepath.Glob(filepath.Join(s.Root, ".bearing", "backups", "state-v1-*.db"))
+	premigration := false
+	for _, path := range backups {
+		db, err := sql.Open("sqlite", path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var version int
+		if err := db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
+			t.Fatal(err)
+		}
+		db.Close()
+		premigration = premigration || version == 1
+	}
+	if !premigration {
+		t.Fatalf("no version 1 backup before migration: %v", backups)
 	}
 	restored := testRepo(t)
 	if err := Restore(ctx, restored, backup); err != nil {

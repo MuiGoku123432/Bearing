@@ -9,6 +9,9 @@ import (
 func TestScopedMemoryLifecycle(t *testing.T) {
 	ctx := context.Background()
 	s := testStore(t)
+	if _, err := s.Remember(ctx, RememberInput{Kind: "preference", Claim: "Use tabs", Basis: "user", Source: " "}); ErrorDetails(err).Code != "invalid_input" {
+		t.Fatalf("user basis accepted without a source: %v", err)
+	}
 	var saved []Mutation
 	for _, anchor := range []string{"api.go", "ui.go"} {
 		out, err := s.Remember(ctx, RememberInput{RequestID: NewID(), Kind: "constraint", Claim: "Use SQLite transactions for durable progress", Basis: "user", Source: "User instruction", Scope: "project", Anchors: []Anchor{{Kind: "path", Value: anchor}}})
@@ -25,6 +28,9 @@ func TestScopedMemoryLifecycle(t *testing.T) {
 	empty, err := other.Recall(ctx, RecallInput{Query: "SQLite"})
 	if err != nil || len(empty.Memories) != 0 {
 		t.Fatalf("repository scope leaked: %+v %v", empty, err)
+	}
+	if !strings.Contains(strings.Join(empty.Warnings, " "), "anchors") {
+		t.Fatalf("empty recall gave no hint: %v", empty.Warnings)
 	}
 	replacement, err := s.Remember(ctx, RememberInput{RequestID: NewID(), Action: "supersede", ID: saved[0].ID, ExpectedVersion: 1, Kind: "decision", Claim: "Use SQLite immediate transactions", Basis: "observed", Source: "Concurrency experiment", Reason: "New evidence", Anchors: []Anchor{{Kind: "path", Value: "api.go"}}})
 	if err != nil {

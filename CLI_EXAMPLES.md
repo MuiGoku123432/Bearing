@@ -79,7 +79,7 @@ Run this through `recall`. The larger explicit budget retrieves most large docum
 }
 ```
 
-Valid kinds are `decision`, `constraint`, `lesson`, and `preference`. Basis is `user`, `observed`, or `inferred`; it describes provenance rather than assigning an artificial confidence percentage. Scope is `project` or `checkout` within this store. Bearing memory is self-contained; it does not import from or defer to Gortex memory. Revalidate claims about code through Gortex before relying on them.
+Valid kinds are `decision`, `constraint`, `lesson`, and `preference`. Basis is `user`, `observed`, or `inferred`; it describes provenance rather than assigning an artificial confidence percentage. Use `user` only when the user stated or confirmed the claim, and say where in `source`. Scope is `project` or `checkout` within this store. Bearing memory is self-contained; it does not import from or defer to Gortex memory. Revalidate claims about code through Gortex before relying on them.
 
 To replace a claim, add `action: "supersede"`, the old `id`, its `expected_version`, and a `reason`, alongside the replacement fields. The response contains the new memory ID. To retract without replacement:
 
@@ -119,7 +119,7 @@ The checkpoint keeps the previous outcome and criteria. Use `status: "blocked"` 
 
 ## Finish with real verification
 
-First run the relevant checks and review the actual diff under ENGINEERING.md. Bearing records the checkout path, HEAD, branch, and dirty state with the finish; do not copy them into the request. Rerun checks after relevant changes, including commits.
+First run the relevant checks and review the actual diff under ENGINEERING.md. Bearing records the checkout path, HEAD, branch, dirty state, and a working-tree hash with the finish; do not copy them into the request. Rerun checks after relevant changes, including commits. Passing evidence saved in a checkpoint on a different working tree is rejected if reused; report a rerun under a new evidence ID.
 
 ```json
 {
@@ -127,15 +127,13 @@ First run the relevant checks and review the actual diff under ENGINEERING.md. B
   "task_id": "TASK_ID",
   "expected_version": 3,
   "summary": "Implemented and verified the requested behavior",
-  "acceptance_results": [
-    {"id": "a1", "status": "pass", "evidence_ids": ["v1"]}
-  ],
   "verification": [
     {
       "id": "v1",
-      "kind": "test",
+      "kind": "command",
       "description": "Describe the acceptance check actually performed",
-      "source": "The actual command, output reference, or observed result",
+      "source": "Where the output can be found, or the observed result",
+      "command": "go test ./...",
       "outcome": "pass",
       "exit_code": 0,
       "acceptance_ids": ["a1"],
@@ -143,7 +141,6 @@ First run the relevant checks and review the actual diff under ENGINEERING.md. B
     }
   ],
   "review": {
-    "policy_id": "CURRENT_POLICY_ID_FROM_RULES_OR_RESUME",
     "summary": "Describe the actual diff review and Gortex reuse check",
     "checks": {
       "single_use": {"status": "pass"},
@@ -158,7 +155,7 @@ First run the relevant checks and review the actual diff under ENGINEERING.md. B
 }
 ```
 
-For research/spec tasks include the final Markdown in `documents` in this finish request. Manual evidence can omit `exit_code`; `observed_at` is optional. `not_applicable` is allowed on a review check only with a reason; acceptance criteria must pass. Finish validates the submitted evidence structure, not the truth of an agent's claims.
+An acceptance criterion passes when at least one passing verification lists its ID in `acceptance_ids`; there is no separate results list. Bearing records the current policy ID in the saved review. For research/spec tasks include the final Markdown in `documents` in this finish request. Use `kind: "command"` for any check run as a command; it needs `command` and `exit_code`. Manual evidence can omit `exit_code`; `observed_at` is optional. `not_applicable` is allowed on a review check only with a reason. A rejected finish names the failing criterion, evidence ID, or review check. The receipt lists `changed_test_files` since the task started so a reviewer can inspect them. Finish validates the submitted evidence structure, not the truth of an agent's claims.
 
 ## Retry and inspect
 

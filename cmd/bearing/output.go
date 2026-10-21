@@ -24,6 +24,9 @@ func printHuman(w io.Writer, value any) error {
 		for _, id := range out.DocumentIDs {
 			fmt.Fprintln(w, "Saved document:", id)
 		}
+		for _, path := range out.ChangedTestFiles {
+			fmt.Fprintln(w, "Changed test file:", path)
+		}
 		return err
 	case bearing.StartResult:
 		if err := printHuman(w, out.Mutation); err != nil {

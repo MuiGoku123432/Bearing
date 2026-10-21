@@ -53,7 +53,7 @@ Run the command once for each desired client. A preview reads the project and re
 | Claude Code | `.mcp.json` | `CLAUDE.md` | `.claude/skills/bearing/SKILL.md` |
 | OpenCode | `opencode.json` | `AGENTS.md` | `.opencode/skills/bearing/SKILL.md` |
 
-The skill includes the full embedded ENGINEERING.md and WORKFLOW.md. Existing project ENGINEERING.md files are not replaced. Instruction entry points receive one marked Bearing block, shared by clients that use AGENTS.md. Text outside that block stays verbatim. Installation supports the host's instruction mechanisms; it cannot force a model to obey them.
+The skill holds the embedded WORKFLOW.md and tells the agent to call `bearing_resume` or `bearing_start` first; those return the full engineering policy, so the skill does not copy it. Existing project ENGINEERING.md files are not replaced. Instruction entry points receive one marked Bearing block, shared by clients that use AGENTS.md. Text outside that block stays verbatim. Installation supports the host's instruction mechanisms; it cannot force a model to obey them.
 
 The Bearing entry in the project MCP config contains absolute paths to this machine's executable and checkout. Do not commit that entry for a team; it will not work on another machine. Each engineer runs `bearing install` in their own checkout. If the config file is already shared in Git, keep the Bearing change out of commits or merge it manually from `bearing setup`. The instruction block and skill contain no machine paths and can be shared.
 
@@ -79,7 +79,7 @@ claude mcp list
 opencode mcp list
 ```
 
-Use the command for your selected client. Confirm that both Bearing and Gortex are available. Ask the agent to read `bearing_rules`, then start or resume work using Bearing. Check that Gortex reports coverage for the checkout before changing source. A CLI check such as `bearing status --repo /path/to/project` verifies the local store but does not verify the client's MCP connection.
+Use the command for your selected client. Confirm that both Bearing and Gortex are available. Ask the agent to resume or start work using Bearing. Check that Gortex reports coverage for the checkout before changing source. A CLI check such as `bearing status --repo /path/to/project` verifies the local store but does not verify the client's MCP connection.
 
 ## When the installer stops
 
@@ -103,7 +103,7 @@ Choose a new output directory and follow its APPLY.md. The bundle contains confi
 
 Run the bootstrap again from the desired source checkout to update the executable. Re-run `bearing install` for each project/client to refresh the embedded workflow and launch settings. If the executable path changed, those project settings must be updated.
 
-Before changing client files, the installer writes exact original bytes and an INSTALL.json manifest under `.bearing/install-backups/<id>/`. The manifest lists newly created and updated paths; backups mirror updated paths. Backups are private files and may contain private settings. Keep them local.
+Before changing client files, the installer writes exact original bytes and an INSTALL.json manifest under `.bearing/install-backups/<id>/`. The manifest lists newly created and updated paths, the Bearing version, `policy_id`, `workflow_id`, and the path and SHA-256 of every file it wrote; backups mirror updated paths. On a repeat install, a file whose content no longer matches the hash Bearing last wrote is reported as edited by you. It is still backed up before Bearing updates its own entry. Backups are private files and may contain private settings. Keep them local.
 
 Ordinary write errors trigger rollback of completed client-file replacements. Initialization and newly created directories may remain. The installer is not a transaction across all files: a process kill or machine failure can leave a partial installation. To recover, stop the installer, inspect INSTALL.json, restore updated files from the matching backup paths, and remove newly created files only if they still contain the installer's content. Restore the intended file permissions too; backup copies are stored with private permissions. A stale `.bearing/install.lock` may be removed only after confirming no installer is still running, then the install can be retried.
 

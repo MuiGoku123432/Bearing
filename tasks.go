@@ -54,6 +54,11 @@ func (s *Store) Start(ctx context.Context, in StartInput) (StartResult, error) {
 		}
 		var err error
 		repo, err = ResolveRepository(ctx, s.Root)
+		if err != nil {
+			return err
+		}
+		// The start tree is the baseline for test files changed before finish.
+		repo.Tree, err = workingTree(ctx, repo)
 		return err
 	}, func(tx *sql.Tx) (Mutation, error) {
 		for _, id := range in.InputDocuments {
