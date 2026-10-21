@@ -127,12 +127,24 @@ func openStore(ctx context.Context, root string, initialize bool) (*Store, error
 		return nil, err
 	}
 	if version > schemaVersion || version < 0 {
-		return nil, fail("unsupported_schema", "This database needs a different Bearing version. It was not migrated.")
+		return nil, fail("unsupported_schema", fmt.Sprintf("This database uses schema version %d; this Bearing binary supports schema versions up to %d. Use a matching Bearing binary. The database was not changed.", version, schemaVersion))
 	}
 	if version == 0 && !initialize {
 		return nil, fail("not_initialized", "Database initialization is incomplete. Run bearing init.")
 	}
 	if version < schemaVersion {
+		if version > 0 {
+			// Keep the store as it was before migrating. A concurrent opener may also
+			// write one; the transaction below still migrates only once.
+			dir := filepath.Join(filepath.Dir(path), "backups")
+			if err = os.MkdirAll(dir, 0700); err != nil {
+				return nil, err
+			}
+			name := fmt.Sprintf("state-v%d-%s-%s.db", version, time.Now().UTC().Format("20060102T150405Z"), NewID()[:8])
+			if err = s.Backup(ctx, filepath.Join(dir, name)); err != nil {
+				return nil, fmt.Errorf("back up before migrating schema version %d: %w", version, err)
+			}
+		}
 		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
 			return nil, err

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	_ "embed"
 	"fmt"
+	"runtime/debug"
 )
 
 //go:embed ENGINEERING.md
@@ -12,7 +13,21 @@ var engineering string
 //go:embed WORKFLOW.md
 var workflow string
 
-const Version = "0.1.0-dev"
+// version is set at link time for builds without a module version:
+// -ldflags "-X github.com/MuiGoku123432/Bearing.version=v0.1.0"
+var version string
+
+// Version reports the module version recorded by go install or a Git-stamped build,
+// then the -ldflags value, then the development version.
+func Version() string {
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	if version != "" {
+		return version
+	}
+	return "0.1.0-dev"
+}
 
 type Policy struct {
 	ID         string `json:"id"`

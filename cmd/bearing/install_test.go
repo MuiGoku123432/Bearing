@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -148,6 +150,59 @@ func TestInstallPreservesSettingsAndRepeats(t *testing.T) {
 				t.Fatal("repeat rewrote config")
 			}
 		})
+	}
+}
+
+func TestInstallManifestRecordsHashesAndReportsUserEdits(t *testing.T) {
+	ctx := context.Background()
+	root := installTestRepo(t)
+	if _, err := installSetup(ctx, root, "claude", "", false); err != nil {
+		t.Fatal(err)
+	}
+	manifests, _ := filepath.Glob(filepath.Join(root, ".bearing", "install-backups", "*", "INSTALL.json"))
+	if len(manifests) != 1 {
+		t.Fatalf("manifests: %v", manifests)
+	}
+	data, _ := os.ReadFile(manifests[0])
+	var manifest struct {
+		Version    string `json:"version"`
+		PolicyID   string `json:"policy_id"`
+		WorkflowID string `json:"workflow_id"`
+		Files      []struct {
+			Path   string `json:"path"`
+			SHA256 string `json:"sha256"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.Version != bearing.Version() || manifest.PolicyID != bearing.Rules().ID || manifest.WorkflowID != bearing.Rules().WorkflowID || len(manifest.Files) != 3 {
+		t.Fatalf("manifest: %s", data)
+	}
+	for _, file := range manifest.Files {
+		written, err := os.ReadFile(filepath.Join(root, file.Path))
+		if err != nil || fmt.Sprintf("%x", sha256.Sum256(written)) != file.SHA256 {
+			t.Fatalf("manifest hash for %s does not match the written file: %v", file.Path, err)
+		}
+	}
+	// The user points Bearing's entry elsewhere; reinstalling restores it and says so.
+	config := filepath.Join(root, ".mcp.json")
+	edited := []byte(`{"mcpServers":{"bearing":{"type":"stdio","command":"/elsewhere/bearing","args":[]}}}`)
+	if err := os.WriteFile(config, edited, 0600); err != nil {
+		t.Fatal(err)
+	}
+	report, err := installSetup(ctx, root, "claude", "", false)
+	if err != nil || !strings.Contains(report, "Update (edited since Bearing last wrote it; back up first): .mcp.json") || strings.Contains(report, "edited since Bearing last wrote it; back up first): CLAUDE.md") {
+		t.Fatalf("user edit not reported: %s %v", report, err)
+	}
+	backups, _ := filepath.Glob(filepath.Join(root, ".bearing", "install-backups", "*", ".mcp.json"))
+	found := false
+	for _, backup := range backups {
+		saved, _ := os.ReadFile(backup)
+		found = found || bytes.Equal(saved, edited)
+	}
+	if !found {
+		t.Fatal("the user's edited config was not backed up")
 	}
 }
 

@@ -57,7 +57,7 @@ func (s *Store) Export(ctx context.Context, path string) error {
 		return err
 	}
 	defer tx.Rollback()
-	out := map[string]any{"schema_version": 1, "bearing_version": Version, "repository": s.Root}
+	out := map[string]any{"schema_version": 1, "bearing_version": Version(), "repository": s.Root}
 	for _, table := range []string{"tasks", "checkpoints", "documents", "memories"} {
 		rows, err := tx.QueryContext(ctx, "SELECT data FROM "+table+" ORDER BY id")
 		if err != nil {

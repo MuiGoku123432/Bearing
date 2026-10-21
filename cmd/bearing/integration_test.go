@@ -217,6 +217,14 @@ func TestCLIInputErrorsAndSetup(t *testing.T) {
 	if err == nil || exitCode(err) != 2 || !json.Valid(output.Bytes()) {
 		t.Fatalf("CLI error envelope: %s %v", output.String(), err)
 	}
+	output.Reset()
+	var version map[string]string
+	if err := run(ctx, []string{"version", "--json"}, strings.NewReader(""), &output, &errors); err != nil || json.Unmarshal(output.Bytes(), &version) != nil {
+		t.Fatalf("version: %s %v", output.String(), err)
+	}
+	if version["version"] != bearing.Version() || version["policy_id"] != bearing.Rules().ID || version["workflow_id"] != bearing.Rules().WorkflowID {
+		t.Fatalf("version report: %v", version)
+	}
 	for _, host := range []string{"codex", "claude", "opencode"} {
 		destination := filepath.Join(t.TempDir(), host)
 		if _, err := renderSetup(ctx, root, host, destination); err != nil {

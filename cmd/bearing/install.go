@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -74,6 +75,28 @@ func installSetup(ctx context.Context, repo, host, major string, dryRun bool) (s
 		path          string
 		before, after []byte
 		mode          fs.FileMode
+		edited        bool
+	}
+	// The newest manifest entry for a path holds the hash Bearing last wrote there,
+	// so a file whose current hash differs was edited by the user.
+	written, writtenAt := map[string]string{}, map[string]string{}
+	manifests, _ := fs.Glob(root.FS(), ".bearing/install-backups/*/INSTALL.json")
+	for _, name := range manifests {
+		var manifest struct {
+			InstalledAt string `json:"installed_at"`
+			Files       []struct {
+				Path   string `json:"path"`
+				SHA256 string `json:"sha256"`
+			} `json:"files"`
+		}
+		if data, err := fs.ReadFile(root.FS(), name); err != nil || json.Unmarshal(data, &manifest) != nil {
+			continue
+		}
+		for _, file := range manifest.Files {
+			if manifest.InstalledAt > writtenAt[file.Path] {
+				written[file.Path], writtenAt[file.Path] = file.SHA256, manifest.InstalledAt
+			}
+		}
 	}
 	var changes []fileChange
 	for i, path := range []string{config, instructions, skill} {
@@ -105,14 +128,17 @@ func installSetup(ctx context.Context, repo, host, major string, dryRun bool) (s
 			return "", fmt.Errorf("%s: %w", path, err)
 		}
 		if !bytes.Equal(before, after) {
-			changes = append(changes, fileChange{path, before, after, mode})
+			hash, known := written[path]
+			changes = append(changes, fileChange{path, before, after, mode, before != nil && known && hash != fmt.Sprintf("%x", sha256.Sum256(before))})
 		}
 	}
 	var report strings.Builder
 	fmt.Fprintf(&report, "Bearing for %s in %s\n", host, repository.Path)
 	for _, change := range changes {
 		action := "Create"
-		if change.before != nil {
+		if change.edited {
+			action = "Update (edited since Bearing last wrote it; back up first)"
+		} else if change.before != nil {
 			action = "Update (back up first)"
 		}
 		fmt.Fprintf(&report, "%s: %s\n", action, change.path)
@@ -151,7 +177,14 @@ func installSetup(ctx context.Context, repo, host, major string, dryRun bool) (s
 			}
 		}
 		if len(changes) > 0 {
-			manifest, _ := json.MarshalIndent(map[string]any{"host": host, "repository": repository.Path, "created": created, "updated": updated}, "", "  ")
+			policy := bearing.Rules()
+			var files []map[string]string
+			for _, change := range changes {
+				files = append(files, map[string]string{"path": change.path, "sha256": fmt.Sprintf("%x", sha256.Sum256(change.after))})
+			}
+			// Fixed-width UTC time so manifests order correctly as strings.
+			installedAt := time.Now().UTC().Format("2006-01-02T15:04:05.000000000Z")
+			manifest, _ := json.MarshalIndent(map[string]any{"host": host, "repository": repository.Path, "version": bearing.Version(), "policy_id": policy.ID, "workflow_id": policy.WorkflowID, "installed_at": installedAt, "created": created, "updated": updated, "files": files}, "", "  ")
 			if err := writeInstallFile(root, filepath.Join(backup, "INSTALL.json"), append(manifest, '\n'), 0600); err != nil {
 				return "", err
 			}
