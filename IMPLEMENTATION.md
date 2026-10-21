@@ -38,6 +38,18 @@ The MCP integration test launches a separate server process. It lists the eight 
 
 Git tests cover stale HEAD/branch/index rejection, dry runs, dirty checkout protection, staged-only commits, native hook rejection, message validation, redirected-environment refusal, occupied/nested worktree destinations, and saved research/spec lineage across worktrees. They verify that later task versions and checkout-scoped memory remain independent. External Git writers can still race preflight checks; uncertain/partial outcomes require inspection as documented in [GIT_WORKFLOW.md](GIT_WORKFLOW.md).
 
+## Review fixes · 21 October 2026
+
+| Fix | Behavior now | Proof |
+| --- | --- | --- |
+| Explicit memory IDs | Recall by up to twenty IDs no longer reports `not_found` when the limit omits existing records; duplicate IDs are ignored | `TestRecallExplicitIDsBeyondLimit` fails on the previous code |
+| Clean working tree | `init` writes `.bearing/.gitignore` containing `*` and leaves the repository `.gitignore` unchanged, so a fresh store no longer causes a dirty-checkout warning | Git status test; symlinked `.bearing/.gitignore` is refused |
+| Optional request IDs | MCP and CLI writes generate a missing request ID and return it. The request ID is outside the input digest, so retrying with the returned ID replays | Omitted-ID replay test; MCP schema test fails on the previous code |
+| Machine paths | Install reports and INSTALL.md state that the project MCP entry holds absolute paths and should not be shared through Git | Documentation and report text |
+| Stemmed recall | Schema version 2 rebuilds memory search with `porter unicode61`. Version 1 stores migrate on open in one transaction; v1 backups restore and migrate | Concurrent-open migration and v1 restore test; an older binary rejected the migrated store without changing it |
+
+`go vet ./...`, `go test ./...`, `go test -race ./...`, and `git diff --check` pass. Gortex was not available for these edits: the daemon was still building the index of this checkout after tracking was re-authorized. All touched files were read directly, and no new shared helper was added.
+
 ## Consumer checks
 
 | Consumer | Installed version | Observed result |
