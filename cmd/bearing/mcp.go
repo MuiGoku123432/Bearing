@@ -43,7 +43,7 @@ func newMCPServer(store *bearing.Store) *mcp.Server {
 		out, err := store.Finish(ctx, in)
 		return toolResult(out, err)
 	})
-	mcp.AddTool(server, &mcp.Tool{Name: "bearing_git", Description: "Inspect branches, worktrees and staged changes; create/switch a branch; create a worktree carrying saved Bearing state; check or create a conventional commit. Mutations require expected_head/expected_branch from inspect; commits also require expected_index and use only already-staged changes. Use dry_run to preview. Obtain user authorization for Git writes. No push, force, deletion, or automatic staging. Inspect after uncertain outcomes; checkpoint results with bearing_checkpoint."}, func(ctx context.Context, req *mcp.CallToolRequest, in bearing.GitInput) (*mcp.CallToolResult, toolOutput[bearing.GitResult], error) {
+	mcp.AddTool(server, &mcp.Tool{Name: "bearing_git", Description: "Work on branches in this checkout. inspect shows the branch, trunk, staged summary and index_tree. branch creates a Conventional Branch (feat/add-login, fix/header-bug) from the trunk and switches to it; uncommitted work moves with it when it starts at the current commit. switch needs a clean checkout. commit uses only already-staged changes, needs expected_index from inspect and a Conventional Commits message, and never commits to main, master, develop, or the trunk. Use dry_run to preview. Obtain user authorization for Git writes. No push, force, deletion, stash, or automatic staging. Inspect after uncertain outcomes; checkpoint results with bearing_checkpoint."}, func(ctx context.Context, req *mcp.CallToolRequest, in bearing.GitInput) (*mcp.CallToolResult, toolOutput[bearing.GitResult], error) {
 		out, err := store.Git(ctx, in)
 		return toolResult(out, err)
 	})

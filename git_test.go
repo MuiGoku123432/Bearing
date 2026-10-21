@@ -31,53 +31,65 @@ func gitTestStore(t *testing.T) *Store {
 	return s
 }
 
-func TestGitBranchesPreserveChangesAndCheckContext(t *testing.T) {
+func TestGitBranchesFollowConventionsAndKeepChanges(t *testing.T) {
 	ctx := context.Background()
 	s := gitTestStore(t)
 	state, err := s.Git(ctx, GitInput{Operation: "inspect"})
-	if err != nil {
-		t.Fatal(err)
+	if err != nil || state.Trunk == "" || state.Trunk != state.Repository.Branch {
+		t.Fatalf("trunk: %+v %v", state, err)
 	}
-	in := GitInput{Operation: "branch", Branch: "feat/memory", ExpectedHead: state.Repository.Head, ExpectedBranch: state.Repository.Branch, DryRun: true}
+	for _, name := range []string{"memory", "feat/Memory", "feat/new--memory", "refactor/memory", "--force"} {
+		if _, err := s.Git(ctx, GitInput{Operation: "branch", Branch: name}); ErrorDetails(err).Code != "invalid_input" {
+			t.Fatalf("unconventional branch %q accepted: %v", name, err)
+		}
+	}
+	in := GitInput{Operation: "branch", Branch: "feat/memory", DryRun: true}
 	if _, err := s.Git(ctx, in); err != nil {
 		t.Fatal(err)
 	}
-	if got := testGit(t, s.Root, "branch", "--show-current"); got != state.Repository.Branch {
+	if got := testGit(t, s.Root, "branch", "--show-current"); got != state.Trunk {
 		t.Fatal("dry run switched branches")
 	}
-	in.ExpectedBranch = "wrong"
-	if _, err := s.Git(ctx, in); ErrorDetails(err).Code != "conflict" {
-		t.Fatalf("stale branch: %v", err)
-	}
-	in.ExpectedBranch = state.Repository.Branch
+	// Work started on the trunk moves onto the new branch.
 	if err := os.WriteFile(filepath.Join(s.Root, "user-work.txt"), []byte("keep me"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	in.DryRun = false
-	if _, err := s.Git(ctx, in); ErrorDetails(err).Code != "conflict" {
-		t.Fatalf("dirty branch switched: %v", err)
-	}
-	data, _ := os.ReadFile(filepath.Join(s.Root, "user-work.txt"))
-	if string(data) != "keep me" {
-		t.Fatal("user changes lost")
-	}
-	if err := os.Remove(filepath.Join(s.Root, "user-work.txt")); err != nil {
-		t.Fatal(err)
-	}
 	created, err := s.Git(ctx, in)
-	if err != nil || created.Repository.Branch != in.Branch {
+	if err != nil || created.Repository.Branch != "feat/memory" || len(created.Warnings) != 0 {
 		t.Fatalf("create: %+v %v", created, err)
 	}
 	if _, err := s.Git(ctx, in); ErrorDetails(err).Code != "conflict" {
-		t.Fatalf("stale retry: %v", err)
+		t.Fatalf("existing branch recreated: %v", err)
 	}
-	_, err = s.Git(ctx, GitInput{Operation: "switch", Branch: state.Repository.Branch, ExpectedHead: created.Repository.Head, ExpectedBranch: created.Repository.Branch})
-	if err != nil {
+	if _, err := s.Git(ctx, GitInput{Operation: "switch", Branch: state.Trunk}); ErrorDetails(err).Code != "conflict" {
+		t.Fatalf("dirty switch: %v", err)
+	}
+	testGit(t, s.Root, "add", "user-work.txt")
+	testGit(t, s.Root, "commit", "-qm", "feat: keep user work")
+	head := testGit(t, s.Root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(s.Root, "more-work.txt"), []byte("keep me too"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	in.Branch = "--force"
-	if _, err := s.Git(ctx, in); ErrorDetails(err).Code != "invalid_input" {
-		t.Fatalf("option branch accepted: %v", err)
+	// New branches start from the trunk, so dirty work elsewhere needs an explicit base.
+	if _, err := s.Git(ctx, GitInput{Operation: "branch", Branch: "fix/header"}); ErrorDetails(err).Code != "conflict" {
+		t.Fatalf("dirty work moved to another base: %v", err)
+	}
+	stacked, err := s.Git(ctx, GitInput{Operation: "branch", Branch: "fix/header", Base: "HEAD"})
+	if err != nil || stacked.Repository.Head != head {
+		t.Fatalf("stacked branch: %+v %v", stacked, err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(s.Root, "more-work.txt")); string(data) != "keep me too" {
+		t.Fatal("user changes lost")
+	}
+	if err := os.Remove(filepath.Join(s.Root, "more-work.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Git(ctx, GitInput{Operation: "switch", Branch: "fix/missing"}); ErrorDetails(err).Code != "invalid_input" {
+		t.Fatalf("missing branch: %v", err)
+	}
+	if _, err := s.Git(ctx, GitInput{Operation: "switch", Branch: state.Trunk}); err != nil {
+		t.Fatal(err)
 	}
 	mergeHead := testGit(t, s.Root, "rev-parse", "--git-path", "MERGE_HEAD")
 	if !filepath.IsAbs(mergeHead) {
@@ -86,8 +98,7 @@ func TestGitBranchesPreserveChangesAndCheckContext(t *testing.T) {
 	if err := os.WriteFile(mergeHead, []byte(state.Repository.Head), 0600); err != nil {
 		t.Fatal(err)
 	}
-	in.Branch = "blocked-by-merge"
-	if _, err := s.Git(ctx, in); ErrorDetails(err).Code != "conflict" {
+	if _, err := s.Git(ctx, GitInput{Operation: "branch", Branch: "fix/blocked-by-merge"}); ErrorDetails(err).Code != "conflict" {
 		t.Fatalf("merge state ignored: %v", err)
 	}
 }
@@ -106,7 +117,14 @@ func TestGitCommitUsesReviewedIndexAndHooks(t *testing.T) {
 	if err != nil || !strings.Contains(state.StagedSummary, "staged.txt") {
 		t.Fatalf("inspect: %+v %v", state, err)
 	}
-	in := GitInput{Operation: "commit", ExpectedHead: state.Repository.Head, ExpectedBranch: state.Repository.Branch, ExpectedIndex: "stale", Message: "feat(memory): retain checkpoints"}
+	in := GitInput{Operation: "commit", ExpectedIndex: state.IndexTree, Message: "feat(memory): retain checkpoints"}
+	if _, err := s.Git(ctx, in); ErrorDetails(err).Code != "conflict" {
+		t.Fatalf("commit to trunk accepted: %v", err)
+	}
+	if _, err := s.Git(ctx, GitInput{Operation: "branch", Branch: "feat/checkpoints"}); err != nil {
+		t.Fatal(err)
+	}
+	in.ExpectedIndex = "stale"
 	if _, err := s.Git(ctx, in); ErrorDetails(err).Code != "conflict" {
 		t.Fatalf("stale index accepted: %v", err)
 	}
@@ -153,11 +171,19 @@ func TestGitCommitUsesReviewedIndexAndHooks(t *testing.T) {
 	if testGit(t, s.Root, "log", "-1", "--format=%s") != in.Message {
 		t.Fatal("commit message changed")
 	}
-	if _, err := s.Git(ctx, in); ErrorDetails(err).Code != "conflict" {
-		t.Fatalf("blind retry accepted: %v", err)
+	if _, err := s.Git(ctx, in); err == nil {
+		t.Fatal("blind retry accepted")
 	}
 	if testGit(t, s.Root, "rev-list", "--count", "HEAD") != "2" {
 		t.Fatal("duplicate commit")
+	}
+}
+
+func TestGitRefusesRedirectedEnvironment(t *testing.T) {
+	s := gitTestStore(t)
+	t.Setenv("GIT_INDEX_FILE", filepath.Join(t.TempDir(), "another-index"))
+	if _, err := s.Git(context.Background(), GitInput{Operation: "inspect"}); ErrorDetails(err).Code != "invalid_input" {
+		t.Fatalf("redirect accepted: %v", err)
 	}
 }
 

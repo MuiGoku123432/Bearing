@@ -101,7 +101,7 @@ func Restore(ctx context.Context, repo, source string) error {
 	if err != nil {
 		return err
 	}
-	destination, err := statePath(repository.Path)
+	destination, err := statePath(ctx, repository.Path)
 	if err != nil {
 		return err
 	}

@@ -26,11 +26,11 @@ Limits: 64 KiB for general mutation JSON; 16 KiB for checkpoint input; 16,000 by
 
 ## Repository boundary
 
-Resolve and normalize the Git working-tree root. Bare and non-Git directories are invalid; an unborn or detached HEAD is allowed. Absent HEAD/branch fields are omitted in JSON. CLI accepts `--repo`; MCP binds at startup and rejects per-call repository overrides.
+Resolve and normalize the Git working-tree root. Bare and non-Git directories are invalid, and so are linked worktrees: removing a worktree deletes its ignored Bearing state, so Bearing works on branches in the main checkout. An unborn or detached HEAD is allowed. Absent HEAD/branch fields are omitted in JSON. CLI accepts `--repo`; MCP binds at startup and rejects per-call repository overrides.
 
-Runtime state lives at `.bearing/state.db`. Separate clones/worktrees do not share it automatically. The explicit Git worktree operation copies a consistent snapshot into the new checkout; later updates stay independent. Project scope means the current store's project, not a machine-wide memory pool. Branch changes retain this checkout's store. Explicit ref-based memory applicability is deferred.
+Runtime state lives at `.bearing/state.db`. Separate clones do not share it. Project scope means the current store's project, not a machine-wide memory pool. Branch changes retain this checkout's store. Explicit ref-based memory applicability is deferred.
 
-Capture the checkout path, HEAD, branch when known, dirty flag, and observation time. Known checkout/HEAD differences and dirty states require revalidation. A matching HEAD is not proof that uncommitted files are unchanged. Bearing captures Git metadata and explicitly selected Markdown documents. Explicit Git operations can also change branches, create worktrees, and commit staged content; source investigation remains in Gortex.
+Capture the checkout path, HEAD, branch when known, dirty flag, and observation time. Known checkout/HEAD differences and dirty states require revalidation. A matching HEAD is not proof that uncommitted files are unchanged. Bearing captures Git metadata and explicitly selected Markdown documents. Explicit Git operations can also create and switch branches and commit staged content; source investigation remains in Gortex.
 
 ## Tasks and immutable checkpoints
 
@@ -72,7 +72,7 @@ MCP names use the `bearing_` prefix. Both interfaces call the same domain operat
 | `recall` | Query or memory IDs, or document IDs; optional anchors, limit, byte budget | Records, omissions, warnings, policy ID |
 | `checkpoint` | Task ID, expected version, summary, next action; optional request ID, state/evidence/documents/task update | Task/checkpoint/document IDs and new task version |
 | `finish` | Task ID, expected version, summary, acceptance results, verification, review; optional request ID, documents/limitations | Completed task and final checkpoint receipt |
-| `git` | Operation and its fields; expected HEAD/branch for writes; expected index tree for commits | Repository state, branches/worktrees, staged summary, operation result and warnings |
+| `git` | Operation and its fields; expected index tree for commits | Repository state, trunk, branches, staged summary, operation result and warnings |
 | `rules` | No input | Complete engineering policy/workflow and identities |
 
 `remember.action` defaults to `save`. Supersede/retract require an existing ID, expected version, and reason. Document recall uses `document_ids` separately from memory query/IDs. Write receipts include request ID, affected ID/version, status, policy ID, and replay status, plus checkpoint/document IDs where relevant.
@@ -81,13 +81,13 @@ MCP publishes precise input and output schemas. Tool success is `{result: ...}`;
 
 ## Git workflow
 
-`git.operation` is `inspect`, `branch`, `switch`, `worktree`, `check-commit`, or `commit`. See [GIT_WORKFLOW.md](GIT_WORKFLOW.md) for complete requests. Git requests are limited to 16 KiB and operations have a 60-second deadline. The repository remains bound to the store; environment variables that redirect Git's repository or index are rejected.
+`git.operation` is `inspect`, `branch`, `switch`, or `commit`. See [GIT_WORKFLOW.md](GIT_WORKFLOW.md) for complete requests. Git requests are limited to 16 KiB and operations have a 60-second deadline. The repository remains bound to the store; environment variables that redirect Git's repository or index are rejected. There is no worktree operation.
 
-Mutations require `expected_head` and `expected_branch` from inspection; detached HEAD uses the literal `HEAD`. An initial Git commit must exist. Branch creation/switching refuses a dirty checkout. Worktree creation can leave dirty files in the original checkout while copying saved Bearing state. Existing merge, rebase, cherry-pick, revert, and bisect operations block writes. `dry_run` checks the request without creating a branch, worktree, or commit; inspection may write Git tree objects.
+New branches must follow Conventional Branch 1.1.0 (`type/description`) and start from the trunk unless `base` is supplied. The trunk is the remote default branch when known, otherwise `main` or `master`; Bearing never fetches and warns when the trunk is behind its last fetched upstream. A dirty checkout can create a branch only when it starts at the current commit, which carries the work onto the branch. Switching needs a clean checkout. An initial commit must exist. Existing merge, rebase, cherry-pick, revert, and bisect operations block writes. `dry_run` checks the request without creating a branch or commit; inspection may write Git tree objects.
 
-Commit requires `expected_index`, the `index_tree` returned by inspection. It uses only already-staged changes, refuses detached HEAD and empty staged changes, validates a Conventional Commits message, and honors Git hooks and signing configuration. The agent must review the staged diff and obtain any authorization required by the host. There is no automatic staging, pushing, deletion, reset, or stash.
+Commit requires `expected_index`, the `index_tree` returned by inspection. It uses only already-staged changes, refuses detached HEAD, empty staged changes, and the trunk branches `main`, `master`, `develop`, or the detected trunk, validates a Conventional Commits message, and honors Git hooks and signing configuration. The agent must review the staged diff and obtain any authorization required by the host. There is no automatic staging, pushing, deletion, reset, or stash.
 
-Git writes are external operations, not SQLite receipt transactions. They have no request ID/replay promise. Preconditions are checked before execution and results are checked afterward; `.bearing/git.lock` serializes Bearing callers but cannot lock out unrelated Git processes. After `outcome_unknown`, inspect the repository before deciding whether another write is needed. Never assume a timeout or hook error means nothing changed. A partially completed worktree operation reports warnings and a recovery backup when available; it does not remove an existing checkout. Checkpoint after reviewing the result.
+Git writes are external operations, not SQLite receipt transactions. They have no request ID/replay promise. Preconditions are checked before execution and results are checked afterward; `.bearing/git.lock` serializes Bearing callers but cannot lock out unrelated Git processes. After `outcome_unknown`, inspect the repository before deciding whether another write is needed. Never assume a timeout or hook error means nothing changed. Checkpoint after reviewing the result.
 
 ## Supported completion
 

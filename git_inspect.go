@@ -59,39 +59,7 @@ func (s *Store) inspectGit(ctx context.Context, result GitResult) (GitResult, er
 		result.Branches = result.Branches[:100]
 		result.Warnings = append(result.Warnings, "Only the first 100 branches are shown.")
 	}
-	worktrees, err := runGit(ctx, s.Root, "worktree", "list", "--porcelain", "-z")
-	if err != nil {
-		return result, err
-	}
-	var current GitWorktree
-	for _, field := range strings.Split(string(worktrees), "\x00") {
-		if field == "" {
-			if current.Path != "" {
-				result.Worktrees = append(result.Worktrees, current)
-				current = GitWorktree{}
-			}
-			continue
-		}
-		key, value, _ := strings.Cut(field, " ")
-		switch key {
-		case "worktree":
-			current.Path = value
-		case "HEAD":
-			current.Head = value
-		case "branch":
-			current.Branch = strings.TrimPrefix(value, "refs/heads/")
-		case "detached":
-			current.Detached = true
-		case "locked":
-			current.Locked = true
-		case "prunable":
-			current.Prunable = true
-		}
-	}
-	if len(result.Worktrees) > 100 {
-		result.Worktrees = result.Worktrees[:100]
-		result.Warnings = append(result.Warnings, "Only the first 100 worktrees are shown.")
-	}
+	result.Trunk = trunk(ctx, s.Root)
 	index, err := runGit(ctx, s.Root, "write-tree")
 	if err != nil {
 		result.Warnings = append(result.Warnings, "The staged tree could not be read. Resolve index conflicts before committing.")
@@ -103,6 +71,6 @@ func (s *Store) inspectGit(ctx context.Context, result GitResult) (GitResult, er
 		return result, err
 	}
 	result.StagedSummary = string(staged)
-	result.Message = "Review the staged diff before committing. Supply the current branch (HEAD if detached), head and index_tree as preconditions. Checkpoint useful progress before branching or creating a worktree."
+	result.Message = "Start new work on a Conventional Branch from the trunk. Review the staged diff, then commit with index_tree as expected_index so exactly that content is committed."
 	return result, nil
 }

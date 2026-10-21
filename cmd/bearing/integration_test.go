@@ -71,7 +71,7 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 		t.Fatalf("Git inspect envelope: %+v %v", gitEnvelope, err)
 	}
 	observed := gitEnvelope.Result.Repository
-	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "branch", Branch: "feat/mcp", ExpectedHead: observed.Head, ExpectedBranch: observed.Branch}})
+	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "branch", Branch: "feat/mcp"}})
 	if gitErr != nil || gitResult.IsError {
 		t.Fatalf("MCP branch: %+v %v", gitResult, gitErr)
 	}
@@ -90,21 +90,17 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 	if err := json.Unmarshal(gitOutput.Bytes(), &staged); err != nil || staged.Repository.Branch != "feat/mcp" || staged.IndexTree == "" {
 		t.Fatalf("CLI Git inspection: %+v %v", staged, err)
 	}
-	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "commit", Message: "feat: exercise the MCP workflow", ExpectedHead: staged.Repository.Head, ExpectedBranch: staged.Repository.Branch, ExpectedIndex: staged.IndexTree}})
+	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "commit", Message: "invalid message", ExpectedIndex: staged.IndexTree}})
+	if gitErr != nil || !gitResult.IsError {
+		t.Fatalf("Git message validation: %+v %v", gitResult, gitErr)
+	}
+	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "commit", Message: "feat: exercise the MCP workflow", ExpectedIndex: staged.IndexTree}})
 	if gitErr != nil || gitResult.IsError {
 		t.Fatalf("MCP commit: %+v %v", gitResult, gitErr)
 	}
 	actual, err := bearing.ResolveRepository(ctx, root)
 	if err != nil || actual.Head == observed.Head || actual.Branch != "feat/mcp" || actual.Dirty {
 		t.Fatalf("MCP commit state: %+v %v", actual, err)
-	}
-	gitOutput.Reset()
-	if err := run(ctx, []string{"git", "--repo", root, "--json", "--input", "-"}, strings.NewReader(`{"operation":"check-commit","message":"docs: explain Git support"}`), &gitOutput, &gitErrors); err != nil || !json.Valid(gitOutput.Bytes()) {
-		t.Fatalf("CLI message check: %s %v", gitOutput.String(), err)
-	}
-	gitResult, gitErr = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_git", Arguments: bearing.GitInput{Operation: "check-commit", Message: "invalid message"}})
-	if gitErr != nil || !gitResult.IsError {
-		t.Fatalf("Git validation: %+v %v", gitResult, gitErr)
 	}
 	for _, tool := range tools.Tools {
 		if tool.InputSchema == nil || tool.OutputSchema == nil {

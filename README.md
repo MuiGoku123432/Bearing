@@ -17,7 +17,7 @@ CGO_ENABLED=0 go build -o bin/bearing ./cmd/bearing
 ./bin/bearing rules
 ```
 
-`init` creates `.bearing/state.db` in the Git checkout. The `.bearing/` directory ignores itself, so tracked files such as `.gitignore` stay unchanged. Separate worktrees have separate databases. State stays local; Bearing does not send documents to a model or external service.
+`init` creates `.bearing/state.db` in the Git checkout. The `.bearing/` directory ignores itself, so tracked files such as `.gitignore` stay unchanged. Bearing runs in the main checkout, not in linked worktrees. State stays local; Bearing does not send documents to a model or external service.
 
 Start a task with a JSON file or stdin:
 
@@ -75,16 +75,21 @@ The server command is `bearing mcp --repo /absolute/path/to/checkout`. It expose
 | `bearing_recall` | Search memory or retrieve exact saved document versions |
 | `bearing_checkpoint` | Save progress and document snapshots atomically |
 | `bearing_finish` | Check acceptance evidence and engineering self-review before completing |
-| `bearing_git` | Inspect Git state, manage branches/worktrees, and create conventional commits |
+| `bearing_git` | Inspect Git state, create and switch branches, and create conventional commits |
 | `bearing_rules` | Read the embedded engineering policy and workflow |
 
 Every tool publishes input and output schemas. MCP results contain either `result` or `error`, with matching structured content and text fallback. CLI `--json` returns the operation result directly, or an `error` envelope. Neither interface silently switches repositories.
 
-## Branches, worktrees, and conventional commits
+## Branches and conventional commits
 
-Use `bearing git --input git-request.json --json` or `bearing_git`. Inspect first, then supply the observed HEAD and branch when creating/switching a branch, creating a worktree, or committing. Commits also require the inspected staged tree and use only changes already staged by the host. Git hooks and signing remain active.
+Bearing works on branches in one checkout and does not use linked worktrees: removing a worktree deletes its ignored Bearing state, so Bearing refuses to run in one. Use `bearing git --input git-request.json --json` or `bearing_git`.
 
-A new worktree receives a consistent copy of saved tasks, memory, research, and specs. Future changes stay independent in each checkout. Checkpoint first, then resume the same task ID in the new worktree and reinstall its client settings. See [Git requests and recovery](GIT_WORKFLOW.md) for examples, dry runs, and conventional message rules.
+- New branches follow [Conventional Branch](https://conventional-branch.github.io/) names such as `feat/add-login` and start from the trunk (the remote default branch, or `main`/`master`).
+- Work started on the trunk moves to the new branch. Bearing never commits to `main`, `master`, `develop`, or the trunk.
+- A commit uses only changes already staged by the host and must match the `index_tree` from inspection. Messages follow Conventional Commits. Git hooks and signing remain active.
+- No push, force, deletion, stash, or automatic staging.
+
+See [Git requests and recovery](GIT_WORKFLOW.md) for examples and dry runs.
 
 ## Research → spec → build
 

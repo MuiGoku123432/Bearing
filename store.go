@@ -49,7 +49,7 @@ func Init(ctx context.Context, repo string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	path, err := statePath(r.Path)
+	path, err := statePath(ctx, r.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func Open(ctx context.Context, repo string) (*Store, error) {
 }
 
 func openStore(ctx context.Context, root string, initialize bool) (*Store, error) {
-	path, err := statePath(root)
+	path, err := statePath(ctx, root)
 	if err != nil {
 		return nil, err
 	}

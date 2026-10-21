@@ -35,8 +35,12 @@ func (s *Store) commitGit(ctx context.Context, in GitInput, result GitResult) (G
 	if err := validateCommitMessage(in.Message); err != nil {
 		return result, err
 	}
-	if result.Repository.Branch == "" {
+	before := result.Repository
+	if before.Branch == "" {
 		return result, fail("conflict", "Create or switch to a branch before committing; this checkout has detached HEAD.")
+	}
+	if before.Branch == "main" || before.Branch == "master" || before.Branch == "develop" || before.Branch == trunk(ctx, s.Root) {
+		return result, fail("conflict", "Bearing does not commit directly to the trunk branch "+before.Branch+". Create a branch first; staged and uncommitted changes move with it.")
 	}
 	index, err := runGit(ctx, s.Root, "write-tree")
 	if err != nil {
@@ -71,9 +75,6 @@ func (s *Store) commitGit(ctx context.Context, in GitInput, result GitResult) (G
 	if closeErr != nil {
 		return result, closeErr
 	}
-	if err := checkGitState(ctx, s.Root, in); err != nil {
-		return result, err
-	}
 	// note: repeat the staged-tree check just before Git runs its normal hooks.
 	latest, err := runGit(ctx, s.Root, "write-tree")
 	if err != nil || strings.TrimSpace(string(latest)) != in.ExpectedIndex {
@@ -93,7 +94,7 @@ func (s *Store) commitGit(ctx context.Context, in GitInput, result GitResult) (G
 		result.Warnings = append(result.Warnings, "The final message could not be verified as conventional. A hook may have rewritten it; inspect the existing commit before taking further action.")
 	}
 	actualTree, treeErr := runGit(ctx, s.Root, "rev-parse", "HEAD^{tree}")
-	if treeErr != nil || strings.TrimSpace(string(actualTree)) != in.ExpectedIndex || current.Branch != in.ExpectedBranch || current.Head == in.ExpectedHead {
+	if treeErr != nil || strings.TrimSpace(string(actualTree)) != in.ExpectedIndex || current.Branch != before.Branch || current.Head == before.Head {
 		result.Warnings = append(result.Warnings, "The resulting commit differs from the reviewed staged tree or branch. A hook or another Git process may have changed it; inspect before proceeding.")
 	}
 	return result, nil
