@@ -109,7 +109,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		if err := db.QueryRowContext(ctx, "SELECT sqlite_version()").Scan(&engine); err != nil {
 			return err
 		}
-		value = map[string]string{"version": bearing.Version(), "sqlite_version": engine, "go_version": runtime.Version(), "policy_id": bearing.Rules().ID, "workflow_id": bearing.Rules().WorkflowID}
+		value = map[string]string{"version": bearing.Version(), "sqlite_version": engine, "go_version": runtime.Version(), "policy_id": bearing.Rules().ID, "workflow_id": bearing.Rules().WorkflowID, "planning_id": bearing.Rules().PlanningID}
 	case "rules":
 		value = bearing.Rules()
 	case "setup":

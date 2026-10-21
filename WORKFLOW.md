@@ -6,7 +6,7 @@ Use Bearing with the current user's instructions, the complete engineering rules
 
 For work that needs durable progress, start a task or resume its ID. Read the full policy returned in the active context. State an outcome and its acceptance criteria. Each criterion is an observable outcome, not a step. Use the fewest criteria that prove the outcome, and give each one way to check it. EARS ("When X, the system shall Y") or Given/When/Then wording is optional. Small fixes can go from start to finish. Questions and terminal Gortex localization do not need task ceremony.
 
-Choose research, spec, or build. A later task links the document IDs produced by earlier work; no phase is mandatory when the request does not need it.
+Choose research, spec, plan, or build. A later task links the document IDs produced by earlier work; no phase is mandatory when the request does not need it.
 
 ## Research
 
@@ -15,6 +15,10 @@ Find relevant primary sources and existing project evidence. Separate observatio
 ## Specify
 
 Use the relevant research document IDs as inputs. Inspect the current system through Gortex. Write a Markdown specification with the outcome, scope, constraints, behavior/interfaces, acceptance criteria, verification, and unresolved decisions. Reuse established code and patterns. Resolve blocking ambiguity; do not invent requirements. Save the spec as a document snapshot and carry its ID into the build task.
+
+## Plan
+
+Use a plan task to groom tracker work: epics, features, stories, tasks, acceptance criteria, and size signals. Resume returns the planning standards; follow them. Load the tracker profile from memory, or discover it with the tracker's own tools and save it. Read existing items and use Gortex for code facts before drafting. Write the proposal as a Markdown plan document and checkpoint it. Write to the tracker only after the user approves that document version. Apply in small batches, mark each item with its plan key, and checkpoint created IDs as evidence. Finish with the final plan document, including its apply log.
 
 ## Build
 

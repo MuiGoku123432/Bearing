@@ -65,7 +65,8 @@ type ReviewInput struct {
 
 // Review is the saved review; Bearing records the policy it was checked against.
 type Review struct {
-	PolicyID string `json:"policy_id"`
+	PolicyID   string `json:"policy_id"`
+	PlanningID string `json:"planning_id,omitempty"`
 	ReviewInput
 }
 

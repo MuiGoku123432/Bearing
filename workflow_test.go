@@ -220,3 +220,51 @@ func TestDocumentPathBoundaries(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanTaskRequiresPlanDocument(t *testing.T) {
+	ctx := context.Background()
+	s := testStore(t)
+	if _, err := s.Start(ctx, StartInput{RequestID: NewID(), Kind: "roadmap", Outcome: "Unknown kind", Acceptance: []Criterion{{Description: "Rejected"}}}); ErrorDetails(err) == nil || ErrorDetails(err).Code != "invalid_input" {
+		t.Fatalf("unknown kind accepted: %v", err)
+	}
+	plan := testStart(t, s, "plan")
+	if plan.Context.Policy.Planning != Rules().Planning {
+		t.Fatal("plan start must include the planning standards")
+	}
+	for _, kind := range []string{"build", "research", "spec"} {
+		other := testStart(t, s, kind)
+		if other.Context.Policy.Planning != "" || other.Context.Policy.PlanningID != Rules().PlanningID {
+			t.Fatalf("%s start: planning text must be absent and planning_id present", kind)
+		}
+		resumed, err := s.Resume(ctx, other.Mutation.ID)
+		if err != nil || resumed.Policy.Planning != "" || resumed.Policy.PlanningID != Rules().PlanningID {
+			t.Fatalf("%s resume: planning text must be absent and planning_id present: %v", kind, err)
+		}
+	}
+	resumed, err := s.Resume(ctx, plan.Mutation.ID)
+	if err != nil || resumed.Policy.Planning != Rules().Planning || resumed.Policy.PlanningID != Rules().PlanningID {
+		t.Fatalf("plan resume must include the planning standards: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(s.Root, "plan.md"), []byte("# Plan: checkout\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	finish := testFinish(t, s, plan.Mutation.ID, 1)
+	if _, err := s.Finish(ctx, finish); ErrorDetails(err) == nil || ErrorDetails(err).Code != "invalid_input" {
+		t.Fatalf("plan finished without a plan document: %v", err)
+	}
+	finish = testFinish(t, s, plan.Mutation.ID, 1)
+	finish.Documents = []DocumentInput{{Path: "plan.md", Kind: "spec", Summary: "Wrong kind"}}
+	if _, err := s.Finish(ctx, finish); ErrorDetails(err) == nil || ErrorDetails(err).Code != "invalid_input" {
+		t.Fatalf("plan finished with a spec document: %v", err)
+	}
+	finish = testFinish(t, s, plan.Mutation.ID, 1)
+	finish.Documents = []DocumentInput{{Path: "plan.md", Kind: "plan", Summary: "Checkout backlog plan"}}
+	done, err := s.Finish(ctx, finish)
+	if err != nil || len(done.DocumentIDs) != 1 {
+		t.Fatalf("plan finish: %v", err)
+	}
+	history, err := s.History(ctx, plan.Mutation.ID, 0)
+	if err != nil || history[0].Review == nil || history[0].Review.PlanningID != Rules().PlanningID {
+		t.Fatalf("plan review must record planning_id: %v", err)
+	}
+}

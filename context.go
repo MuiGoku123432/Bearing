@@ -32,7 +32,7 @@ func (s *Store) Resume(ctx context.Context, id string) (Context, error) {
 	ctx, cancel := operationContext(ctx)
 	defer cancel()
 	out := Context{Policy: Rules()}
-	out.Policy.Workflow = ""
+	out.Policy.Workflow, out.Policy.Planning = "", ""
 	var err error
 	out.Repository, err = ResolveRepository(ctx, s.Root)
 	if err != nil {
@@ -70,6 +70,9 @@ func (s *Store) Resume(ctx context.Context, id string) (Context, error) {
 		return out, err
 	}
 	out.Task = &task
+	if task.Kind == "plan" {
+		out.Policy.Planning = Rules().Planning
+	}
 	context := task.CreatedContext
 	docIDs := append([]string{}, task.InputDocuments...)
 	if task.LatestCheckpointID != "" {

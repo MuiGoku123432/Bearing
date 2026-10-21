@@ -43,8 +43,8 @@ func (s *Store) Start(ctx context.Context, in StartInput) (StartResult, error) {
 		if in.Kind == "" {
 			in.Kind = "build"
 		}
-		if in.Kind != "build" && in.Kind != "research" && in.Kind != "spec" {
-			return fail("invalid_input", "Task kind must be build, research, or spec.")
+		if in.Kind != "build" && in.Kind != "research" && in.Kind != "spec" && in.Kind != "plan" {
+			return fail("invalid_input", "Task kind must be build, research, spec, or plan.")
 		}
 		if len(in.InputDocuments) > 16 {
 			return fail("invalid_input", "Link at most sixteen input documents.")
