@@ -1,6 +1,6 @@
 # Bearing v0.1 agent contract
 
-Developer preview behavior · 20 October 2026
+Developer preview behavior · 21 October 2026
 
 This contract describes the implemented interfaces. [BUILD_PLAN.md](BUILD_PLAN.md) retains the release acceptance story; [IMPLEMENTATION.md](IMPLEMENTATION.md) distinguishes verified software behavior from the remaining agent evaluations. [CLI_EXAMPLES.md](CLI_EXAMPLES.md) provides complete request examples.
 
