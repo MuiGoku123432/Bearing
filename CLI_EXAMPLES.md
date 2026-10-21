@@ -54,6 +54,31 @@ Use the returned document ID to start a spec:
 
 Write and capture a spec the same way, using `kind: "spec"` on its document. Start implementation with `kind: "build"` and the spec's document ID in `input_documents`. The resulting record keeps the research → spec → implementation lineage. Tasks do not have to wait on a formal phase gate; use the review appropriate to the work.
 
+## Plan tracker work
+
+Start a plan task, linking the spec it grooms:
+
+```json
+{
+  "request_id": "plan-checkout-1",
+  "kind": "plan",
+  "outcome": "Groom the next slices of the checkout feature into stories with acceptance criteria",
+  "acceptance": [
+    {"id": "a1", "description": "The user approves a plan document whose stories each have Given/When/Then acceptance criteria"},
+    {"id": "a2", "description": "Approved items exist in the tracker with parent links and plan keys, verified by re-reading them"}
+  ],
+  "input_documents": ["RETURNED_SPEC_DOCUMENT_ID"]
+}
+```
+
+The agent writes `docs/plans/checkout.md` and captures it with `kind: "plan"`. After the user approves that document version, it applies at most ten items per batch. Each body ends with `Bearing plan: checkout/S1`, and each created item is one evidence entry:
+
+```json
+{"id": "e1", "kind": "tracker", "description": "S1 -> AB#1234 https://dev.azure.com/example/project/_workitems/edit/1234", "source": "wit_work_item_write create", "outcome": "pass", "acceptance_ids": ["a2"]}
+```
+
+Finish with the final plan document, including its apply log, in `documents`.
+
 ## Read saved document content
 
 ```json

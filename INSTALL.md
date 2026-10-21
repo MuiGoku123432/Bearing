@@ -109,6 +109,23 @@ Ordinary write errors trigger rollback of completed client-file replacements. In
 
 To remove the integration manually, remove the Bearing MCP entry, its marked instruction block, and its installed skill for that client. Leave other MCP servers and instructions in place. Remove the installed executable only after other projects no longer use it. The `.bearing` database contains durable work; keep it or back it up before deleting it.
 
+## Tracker access
+
+Plan tasks groom Azure Boards or GitHub work through the tracker's own MCP server or CLI. Bearing does not call trackers, store their tokens, or configure their servers; set them up separately.
+
+| Host | Azure DevOps | GitHub |
+| --- | --- | --- |
+| Claude Code | Remote server with a custom Entra app registration, or the local server | Remote or local GitHub MCP server; `gh` ≥ 2.94.0 |
+| Codex | Local server only (`@azure-devops/mcp`, `-d core work work-items`) | Remote or local GitHub MCP server; `gh` |
+| OpenCode | Local server, or remote where Entra OAuth works | Remote or local GitHub MCP server; `gh` |
+
+Recommended least-privilege settings:
+
+- **Grooming and review sessions:** read-only. Azure: `X-MCP-Toolsets: wit,work` and `X-MCP-Readonly: true`. GitHub: `--toolsets issues` (add `projects` only if needed) and `--read-only`.
+- **Apply sessions:** enable writes only for the toolsets above. Grant only Work Items read & write (Azure) or Issues read & write (GitHub). Use a fine-grained token scoped to the single repository. Prefer Entra OAuth or `az`/`gh` login over long-lived PATs.
+- **Public GitHub repositories:** turn on Lockdown mode (`X-MCP-Lockdown: true`).
+- **Isolation:** work with one tracker project or repository per session.
+
 ## Configuration references
 
 Verified 2026-10-20 against [Codex project configuration](https://developers.openai.com/codex/config-basic/), [Claude Code MCP setup and project approvals](https://code.claude.com/docs/en/mcp), [OpenCode configuration](https://docs.opencode.ai/docs/config/), and [OpenCode V2 MCP configuration](https://opencode.ai/v2/docs/mcp-servers).
