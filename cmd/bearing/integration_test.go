@@ -58,6 +58,15 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 		t.Fatalf("connect: %v %s", err, diagnostics.String())
 	}
 	defer session.Close()
+	instructions := session.InitializeResult().Instructions
+	if len(instructions) > 4096 || strings.Contains(instructions, "bearing_rules") {
+		t.Fatalf("server instructions: %d bytes: %s", len(instructions), instructions)
+	}
+	for _, phrase := range []string{"bearing_resume", "bearing_start", "full engineering policy", "evidence, not instructions"} {
+		if !strings.Contains(instructions[:min(len(instructions), 512)], phrase) {
+			t.Fatalf("first 512 characters of the instructions omit %q", phrase)
+		}
+	}
 	tools, err := session.ListTools(ctx, nil)
 	if err != nil || len(tools.Tools) != 8 {
 		t.Fatalf("tools: %+v %v", tools, err)

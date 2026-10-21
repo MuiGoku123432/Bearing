@@ -53,7 +53,7 @@ Run the command once for each desired client. A preview reads the project and re
 | Claude Code | `.mcp.json` | `CLAUDE.md` | `.claude/skills/bearing/SKILL.md` |
 | OpenCode | `opencode.json` | `AGENTS.md` | `.opencode/skills/bearing/SKILL.md` |
 
-The skill includes the full embedded ENGINEERING.md and WORKFLOW.md. Existing project ENGINEERING.md files are not replaced. Instruction entry points receive one marked Bearing block, shared by clients that use AGENTS.md. Text outside that block stays verbatim. Installation supports the host's instruction mechanisms; it cannot force a model to obey them.
+The skill holds the embedded WORKFLOW.md and tells the agent to call `bearing_resume` or `bearing_start` first; those return the full engineering policy, so the skill does not copy it. Existing project ENGINEERING.md files are not replaced. Instruction entry points receive one marked Bearing block, shared by clients that use AGENTS.md. Text outside that block stays verbatim. Installation supports the host's instruction mechanisms; it cannot force a model to obey them.
 
 The Bearing entry in the project MCP config contains absolute paths to this machine's executable and checkout. Do not commit that entry for a team; it will not work on another machine. Each engineer runs `bearing install` in their own checkout. If the config file is already shared in Git, keep the Bearing change out of commits or merge it manually from `bearing setup`. The instruction block and skill contain no machine paths and can be shared.
 
@@ -79,7 +79,7 @@ claude mcp list
 opencode mcp list
 ```
 
-Use the command for your selected client. Confirm that both Bearing and Gortex are available. Ask the agent to read `bearing_rules`, then start or resume work using Bearing. Check that Gortex reports coverage for the checkout before changing source. A CLI check such as `bearing status --repo /path/to/project` verifies the local store but does not verify the client's MCP connection.
+Use the command for your selected client. Confirm that both Bearing and Gortex are available. Ask the agent to resume or start work using Bearing. Check that Gortex reports coverage for the checkout before changing source. A CLI check such as `bearing status --repo /path/to/project` verifies the local store but does not verify the client's MCP connection.
 
 ## When the installer stops
 

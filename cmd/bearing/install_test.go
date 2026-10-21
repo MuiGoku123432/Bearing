@@ -127,8 +127,8 @@ func TestInstallPreservesSettingsAndRepeats(t *testing.T) {
 				t.Fatal("team instructions lost")
 			}
 			skill, _ := os.ReadFile(filepath.Join(root, test.skill))
-			if !bytes.Contains(skill, []byte(bearing.Rules().Text)) || !bytes.Contains(skill, []byte(bearing.Rules().Workflow)) {
-				t.Fatal("skill lost embedded policy or workflow")
+			if !bytes.Contains(skill, []byte(bearing.Rules().Workflow)) || bytes.Contains(skill, []byte(bearing.Rules().Text)) || !bytes.Contains(skill, []byte("bearing_resume")) {
+				t.Fatal("skill must hold the workflow, point to resume, and not copy the policy")
 			}
 			backups, _ := filepath.Glob(filepath.Join(root, ".bearing", "install-backups", "*", test.config))
 			if len(backups) != 1 {
