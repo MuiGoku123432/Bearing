@@ -4,7 +4,7 @@ Use Bearing with the current user's instructions, the complete engineering rules
 
 ## Start or continue
 
-For work that needs durable progress, start a task or resume its ID. Read the full policy returned in the active context. State an outcome and observable acceptance criteria. Small fixes can go from start to finish. Questions and terminal Gortex localization do not need task ceremony.
+For work that needs durable progress, start a task or resume its ID. Read the full policy returned in the active context. State an outcome and its acceptance criteria. Each criterion is an observable outcome, not a step. Use the fewest criteria that prove the outcome, and give each one way to check it. EARS ("When X, the system shall Y") or Given/When/Then wording is optional. Small fixes can go from start to finish. Questions and terminal Gortex localization do not need task ceremony.
 
 Choose research, spec, or build. A later task links the document IDs produced by earlier work; no phase is mandatory when the request does not need it.
 
@@ -39,6 +39,8 @@ Review the diff and stage only the intended files through the host's Git tools. 
 ## Context and handoffs
 
 Resume in a fresh context to reload full policy and bounded task state. Expand selected memory or document IDs when needed. Code-dependent memories and dirty-state evidence need fresh Gortex validation. Never assume unchanged HEAD proves unchanged uncommitted work.
+
+One agent writes in a checkout at a time; the checkout has one working tree, index, and HEAD. Subagents investigate and report to the parent. The parent edits files and writes Bearing state.
 
 Follow Gortex's terminal answer_ready rule for pure localization: answer and stop; do not force a later checkpoint. If the configured Gortex integration is missing, report it and stop affected code work. Bearing memory remains available.
 
