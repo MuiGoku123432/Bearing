@@ -71,7 +71,7 @@ MCP names use the `bearing_` prefix. Both interfaces call the same domain operat
 | `remember` | Save/supersede/retract fields; optional request ID | Memory mutation receipt |
 | `recall` | Query or memory IDs, or document IDs; optional anchors, limit, byte budget | Records, omissions, warnings, policy ID |
 | `checkpoint` | Task ID, expected version, summary, next action; optional request ID, state/evidence/documents/task update | Task/checkpoint/document IDs and new task version |
-| `finish` | Task ID, expected version, summary, acceptance results, verification, review; optional request ID, documents/limitations | Completed task and final checkpoint receipt |
+| `finish` | Task ID, expected version, summary, verification, review; optional request ID, documents/limitations | Completed task and final checkpoint receipt |
 | `git` | Operation and its fields; expected index tree for commits | Repository state, trunk, branches, staged summary, operation result and warnings |
 | `rules` | No input | Complete engineering policy/workflow and identities |
 
@@ -91,9 +91,9 @@ Git writes are external operations, not SQLite receipt transactions. They have n
 
 ## Supported completion
 
-Finish requires all acceptance IDs to have `status: "pass"` and passing evidence IDs explicitly linked back to those criteria. Verification includes a unique ID, description, source, outcome, acceptance IDs, an optional observation time, and an optional actual exit code. Outcomes are `pass`, `fail`, or `not_run`; an exit code must agree with the outcome. Blocking verification must pass. Agents do not submit checkout details: the finish checkpoint records the checkout path, HEAD, branch, dirty flag, and time that Bearing observed.
+Finish has no separate acceptance results: each acceptance criterion passes when at least one passing verification item lists its ID in `acceptance_ids`. Verification includes a unique ID, description, source, outcome, acceptance IDs, an optional observation time, and an optional actual exit code. Outcomes are `pass`, `fail`, or `not_run`; an exit code must agree with the outcome. Blocking verification must pass. Agents do not submit checkout details: the finish checkpoint records the checkout path, HEAD, branch, dirty flag, and time that Bearing observed.
 
-Review names the current policy ID, supplies a summary, has no unresolved findings, and includes the five checks `single_use`, `reuse`, `necessity`, `conventions`, and `minimality`. Each is `pass` or `not_applicable`; the latter needs a reason. Research/spec tasks must include their final Markdown document of the corresponding kind in the finish request.
+Review supplies a summary, has no unresolved findings, and includes the five checks `single_use`, `reuse`, `necessity`, `conventions`, and `minimality`. Each is `pass` or `not_applicable`; the latter needs a reason. Agents do not submit the policy ID; Bearing records the current one in the saved review. Research/spec tasks must include their final Markdown document of the corresponding kind in the finish request. A rejected finish names the criterion ID, evidence ID, or review check that failed. Checkpoints saved by earlier versions keep their `acceptance_results` and stay readable through history.
 
 The agent must rerun relevant checks after relevant changes, including commits. Bearing does not execute submitted commands or independently certify that the agent performed the review. Live-agent evaluations remain necessary to test actual policy adherence and honest reporting.
 

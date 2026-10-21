@@ -28,7 +28,7 @@ Run the relevant real checks after the last relevant edit or commit. Record actu
 
 Checkpoint after meaningful progress, a changed approach, a blocker, or a handoff. Save durable decisions, constraints, lessons, and preferences promptly in Bearing memory with scope and evidence. Bearing memory stands on its own: save and recall it in Bearing whether or not Gortex or another tool also keeps notes.
 
-Before finish, inspect the diff against all five engineering self-review items. Record one concise review summary and the outcomes. Every acceptance criterion needs supporting verification. An unresolved failure or finding means work remains. Do not claim independent certification from a submitted checklist.
+Before finish, inspect the diff against all five engineering self-review items. Record one concise review summary and the outcomes. Every acceptance criterion needs at least one passing verification that lists its ID in `acceptance_ids`. An unresolved failure or finding means work remains. Do not claim independent certification from a submitted checklist.
 
 ## Branches and commits
 

@@ -119,7 +119,7 @@ func (s *Store) saveProgress(ctx context.Context, in CheckpointInput, finish *Fi
 					return Mutation{}, fail("invalid_input", "Finishing research or a spec requires saving its final Markdown document in this request.")
 				}
 			}
-			cp.AcceptanceResults, cp.Verification, cp.Review, cp.Limitations = finish.AcceptanceResults, finish.Verification, &finish.Review, finish.Limitations
+			cp.Verification, cp.Review, cp.Limitations = finish.Verification, &Review{PolicyID: Rules().ID, ReviewInput: finish.Review}, finish.Limitations
 			in.Status = "completed"
 		}
 		data, err := json.Marshal(cp)
@@ -152,64 +152,56 @@ func (s *Store) saveProgress(ctx context.Context, in CheckpointInput, finish *Fi
 }
 
 func validateFinish(task Task, in FinishInput) error {
-	if in.Review.PolicyID != Rules().ID {
-		return fail("invalid_input", "Review must name the current engineering policy ID.")
+	if strings.TrimSpace(in.Review.Summary) == "" {
+		return fail("invalid_input", "Finish needs a review summary.")
 	}
-	if strings.TrimSpace(in.Review.Summary) == "" || len(in.Review.Unresolved) != 0 {
-		return fail("invalid_input", "Finish needs a review summary with no unresolved findings.")
+	if len(in.Review.Unresolved) != 0 {
+		return fail("invalid_input", "The review lists unresolved findings. Resolve them before finishing.")
 	}
 	for _, name := range []string{"single_use", "reuse", "necessity", "conventions", "minimality"} {
 		check, exists := in.Review.Checks[name]
 		if !exists || (check.Status != "pass" && check.Status != "not_applicable") || (check.Status == "not_applicable" && strings.TrimSpace(check.Reason) == "") {
-			return fail("invalid_input", "Every engineering review check must pass or explain why it is not applicable: "+name)
+			return fail("invalid_input", "Review check "+name+" must pass, or be not_applicable with a reason.")
 		}
 	}
-	evidence := map[string]Evidence{}
-	criteria := map[string]bool{}
+	// A criterion passes when at least one passing verification lists it.
+	passed := map[string]bool{}
 	for _, criterion := range task.Acceptance {
-		criteria[criterion.ID] = true
-	}
-	for _, item := range in.Verification {
-		if item.ID == "" || evidence[item.ID].ID != "" || item.Source == "" || item.Description == "" {
-			return fail("invalid_input", "Verification needs unique IDs, descriptions, and sources.")
-		}
-		if item.Outcome != "pass" && item.Outcome != "fail" && item.Outcome != "not_run" {
-			return fail("invalid_input", "Verification outcome must be pass, fail, or not_run.")
-		}
-		if item.ExitCode != nil && ((*item.ExitCode == 0) != (item.Outcome == "pass")) {
-			return fail("invalid_input", "Verification outcome disagrees with its exit code.")
-		}
-		if item.Blocking && item.Outcome != "pass" {
-			return fail("invalid_input", "A blocking verification has not passed.")
-		}
-		for _, id := range item.AcceptanceIDs {
-			if !criteria[id] {
-				return fail("invalid_input", "Verification names an unknown acceptance criterion.")
-			}
-		}
-		evidence[item.ID] = item
+		passed[criterion.ID] = false
 	}
 	seen := map[string]bool{}
-	for _, result := range in.AcceptanceResults {
-		if !criteria[result.ID] || seen[result.ID] || result.Status != "pass" || len(result.EvidenceIDs) == 0 {
-			return fail("invalid_input", "Every acceptance criterion must pass with supporting verification.")
+	for _, item := range in.Verification {
+		if item.ID == "" {
+			return fail("invalid_input", "Every verification item needs an ID.")
 		}
-		seen[result.ID] = true
-		for _, id := range result.EvidenceIDs {
-			item, exists := evidence[id]
-			linked := false
-			for _, criterion := range item.AcceptanceIDs {
-				if criterion == result.ID {
-					linked = true
-				}
+		if seen[item.ID] {
+			return fail("invalid_input", "Verification ID "+item.ID+" is used more than once.")
+		}
+		seen[item.ID] = true
+		if item.Source == "" || item.Description == "" {
+			return fail("invalid_input", "Verification "+item.ID+" needs a description and a source.")
+		}
+		if item.Outcome != "pass" && item.Outcome != "fail" && item.Outcome != "not_run" {
+			return fail("invalid_input", "Verification "+item.ID+" outcome must be pass, fail, or not_run.")
+		}
+		if item.ExitCode != nil && ((*item.ExitCode == 0) != (item.Outcome == "pass")) {
+			return fail("invalid_input", "Verification "+item.ID+" outcome disagrees with its exit code.")
+		}
+		if item.Blocking && item.Outcome != "pass" {
+			return fail("invalid_input", "Blocking verification "+item.ID+" has not passed.")
+		}
+		for _, id := range item.AcceptanceIDs {
+			done, known := passed[id]
+			if !known {
+				return fail("invalid_input", "Verification "+item.ID+" names unknown acceptance criterion "+id+".")
 			}
-			if !exists || item.Outcome != "pass" || !linked {
-				return fail("invalid_input", "Acceptance evidence must pass and explicitly cover that criterion.")
-			}
+			passed[id] = done || item.Outcome == "pass"
 		}
 	}
-	if len(seen) != len(criteria) {
-		return fail("invalid_input", "Some acceptance criteria have no result.")
+	for _, criterion := range task.Acceptance {
+		if !passed[criterion.ID] {
+			return fail("invalid_input", "Acceptance criterion "+criterion.ID+" has no passing verification that lists it in acceptance_ids.")
+		}
 	}
 	return nil
 }

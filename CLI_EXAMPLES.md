@@ -127,9 +127,6 @@ First run the relevant checks and review the actual diff under ENGINEERING.md. B
   "task_id": "TASK_ID",
   "expected_version": 3,
   "summary": "Implemented and verified the requested behavior",
-  "acceptance_results": [
-    {"id": "a1", "status": "pass", "evidence_ids": ["v1"]}
-  ],
   "verification": [
     {
       "id": "v1",
@@ -143,7 +140,6 @@ First run the relevant checks and review the actual diff under ENGINEERING.md. B
     }
   ],
   "review": {
-    "policy_id": "CURRENT_POLICY_ID_FROM_RULES_OR_RESUME",
     "summary": "Describe the actual diff review and Gortex reuse check",
     "checks": {
       "single_use": {"status": "pass"},
@@ -158,7 +154,7 @@ First run the relevant checks and review the actual diff under ENGINEERING.md. B
 }
 ```
 
-For research/spec tasks include the final Markdown in `documents` in this finish request. Manual evidence can omit `exit_code`; `observed_at` is optional. `not_applicable` is allowed on a review check only with a reason; acceptance criteria must pass. Finish validates the submitted evidence structure, not the truth of an agent's claims.
+An acceptance criterion passes when at least one passing verification lists its ID in `acceptance_ids`; there is no separate results list. Bearing records the current policy ID in the saved review. For research/spec tasks include the final Markdown in `documents` in this finish request. Manual evidence can omit `exit_code`; `observed_at` is optional. `not_applicable` is allowed on a review check only with a reason. A rejected finish names the failing criterion, evidence ID, or review check. Finish validates the submitted evidence structure, not the truth of an agent's claims.
 
 ## Retry and inspect
 

@@ -185,7 +185,7 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 	for _, name := range []string{"single_use", "reuse", "necessity", "conventions", "minimality"} {
 		checks[name] = bearing.ReviewCheck{Status: "pass"}
 	}
-	finish := bearing.FinishInput{RequestID: "mcp-finish", TaskID: started.Mutation.ID, ExpectedVersion: 2, Summary: "Verified the transport handoff", AcceptanceResults: []bearing.AcceptanceResult{{ID: "a1", Status: "pass", EvidenceIDs: []string{"v1"}}}, Verification: []bearing.Evidence{{ID: "v1", Kind: "inspection", Description: "CLI resumed the task saved through MCP", Source: "TestStdioMCPAndCLIShareState", Outcome: "pass", AcceptanceIDs: []string{"a1"}}}, Review: bearing.Review{PolicyID: bearing.Rules().ID, Summary: "Integration fixture review", Checks: checks}}
+	finish := bearing.FinishInput{RequestID: "mcp-finish", TaskID: started.Mutation.ID, ExpectedVersion: 2, Summary: "Verified the transport handoff", Verification: []bearing.Evidence{{ID: "v1", Kind: "inspection", Description: "CLI resumed the task saved through MCP", Source: "TestStdioMCPAndCLIShareState", Outcome: "pass", AcceptanceIDs: []string{"a1"}}}, Review: bearing.ReviewInput{Summary: "Integration fixture review", Checks: checks}}
 	result, err = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_finish", Arguments: finish})
 	if err != nil || result.IsError {
 		t.Fatalf("finish: %+v %v", result, err)

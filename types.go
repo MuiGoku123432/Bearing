@@ -42,6 +42,7 @@ type Evidence struct {
 	Blocking      bool     `json:"blocking,omitempty"`
 }
 
+// AcceptanceResult is kept so finishes saved before results were derived from verification stay readable.
 type AcceptanceResult struct {
 	ID          string   `json:"id"`
 	Status      string   `json:"status"`
@@ -53,11 +54,16 @@ type ReviewCheck struct {
 	Reason string `json:"reason,omitempty"`
 }
 
-type Review struct {
-	PolicyID   string                 `json:"policy_id"`
+type ReviewInput struct {
 	Summary    string                 `json:"summary"`
 	Checks     map[string]ReviewCheck `json:"checks"`
 	Unresolved []string               `json:"unresolved,omitempty"`
+}
+
+// Review is the saved review; Bearing records the policy it was checked against.
+type Review struct {
+	PolicyID string `json:"policy_id"`
+	ReviewInput
 }
 
 type TaskUpdate struct {
@@ -134,15 +140,14 @@ type CheckpointInput struct {
 }
 
 type FinishInput struct {
-	RequestID         string             `json:"request_id,omitempty"`
-	TaskID            string             `json:"task_id"`
-	ExpectedVersion   int                `json:"expected_version"`
-	Summary           string             `json:"summary"`
-	AcceptanceResults []AcceptanceResult `json:"acceptance_results"`
-	Verification      []Evidence         `json:"verification"`
-	Review            Review             `json:"review"`
-	Documents         []DocumentInput    `json:"documents,omitempty"`
-	Limitations       []string           `json:"limitations,omitempty"`
+	RequestID       string          `json:"request_id,omitempty"`
+	TaskID          string          `json:"task_id"`
+	ExpectedVersion int             `json:"expected_version"`
+	Summary         string          `json:"summary"`
+	Verification    []Evidence      `json:"verification"`
+	Review          ReviewInput     `json:"review"`
+	Documents       []DocumentInput `json:"documents,omitempty"`
+	Limitations     []string        `json:"limitations,omitempty"`
 }
 
 type Mutation struct {
