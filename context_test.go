@@ -38,6 +38,9 @@ func TestContextRetainsDocumentsAndHonorsBudget(t *testing.T) {
 	if resumed.Omitted == 0 || resumed.Policy.Text != Rules().Text || resumed.Next != "Finish the spec" {
 		t.Fatal("context trimming lost required guidance")
 	}
+	if strings.Contains(strings.Join(resumed.Warnings, " "), "No memories matched") {
+		t.Fatal("resume repeated the explicit-recall hint")
+	}
 	history, err := s.History(ctx, started.Mutation.ID, 0)
 	if err != nil || len(history[0].FailedAttempts[0]) < 10000 {
 		t.Fatal("trimming destroyed the durable record")

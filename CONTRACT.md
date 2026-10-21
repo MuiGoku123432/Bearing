@@ -49,14 +49,14 @@ Document snapshots include their task and checkpoint IDs, path, kind, summary, s
 Memory contains `id`, `kind`, `claim`, `basis`, `source`, `scope`, anchors, status/version, `supersedes` when applicable, `reason`, timestamps, and captured `context`.
 
 - Kind: `decision`, `constraint`, `lesson`, or `preference`.
-- Basis: `user`, `observed`, or `inferred`.
+- Basis: `user`, `observed`, or `inferred`. `user` means the user stated or confirmed the claim. Every saved claim, including one with basis `user`, needs a non-empty source.
 - Scope: `project` or `checkout`.
 - Anchors: `{kind: "path" | "symbol", value: "..."}`.
 - Status: `active`, `superseded`, or `retracted`.
 
 Supersession creates a replacement and marks the old claim superseded in one transaction. The replacement points backward through `supersedes`; the old record keeps its reason and updated version. Retraction preserves the claim and reason without asserting a replacement. Exact-ID recall can inspect historical records.
 
-Normal recall filters active state and checkout applicability before lexical ranking. Supplied anchors admit matching anchored records and unanchored project context. Natural-language words are quoted as literal FTS5 terms, joined with OR; SQL values are parameterized. English Porter stemming matches word forms such as `retry` and `retrying`. Matching records rank by BM25, then recency and ID. An empty query lists recent applicable memories. Explicit IDs deliberately inspect records regardless of current applicability.
+Normal recall filters active state and checkout applicability before lexical ranking. Supplied anchors admit matching anchored records and unanchored project context. Natural-language words are quoted as literal FTS5 terms, joined with OR; SQL values are parameterized. English Porter stemming matches word forms such as `retry` and `retrying`. Matching records rank by BM25, then recency and ID. An empty query lists recent applicable memories. Explicit IDs deliberately inspect records regardless of current applicability. When recall returns no memories, it adds a warning suggesting anchors or explicit IDs; resume does not repeat that hint.
 
 Bearing memory is self-contained. It does not read, import, synchronize with, or defer to Gortex memory, and recall works whether or not Gortex is available. If another tool's policy also requires its own record, the agent may write both; the Bearing record stays complete for Bearing. Claims about code still need fresh Gortex evidence before they are relied on.
 
@@ -77,7 +77,7 @@ MCP names use the `bearing_` prefix. Both interfaces call the same domain operat
 
 `remember.action` defaults to `save`. Supersede/retract require an existing ID, expected version, and reason. Document recall uses `document_ids` separately from memory query/IDs. Write receipts include request ID, affected ID/version, status, policy ID, and replay status, plus checkpoint/document IDs where relevant. Finish receipts also list `changed_test_files`.
 
-MCP publishes precise input and output schemas. Tool success is `{result: ...}`; domain failure is `{error: ...}` with MCP `isError`. Structured output has a text fallback. The single typed SDK envelope is shared by all eight handlers to avoid duplicating schema and error logic. CLI JSON returns the result directly, or the same error envelope. Invalid protocol requests remain protocol/SDK validation errors.
+MCP publishes precise input and output schemas. `resume`, `recall`, and `rules` declare `readOnlyHint: true`. `start`, `remember`, `checkpoint`, and `finish` declare `destructiveHint: false` because they append or supersede records without deleting history; `git` keeps the protocol defaults. Tool success is `{result: ...}`; domain failure is `{error: ...}` with MCP `isError`. Structured output has a text fallback. The single typed SDK envelope is shared by all eight handlers to avoid duplicating schema and error logic. CLI JSON returns the result directly, or the same error envelope. Invalid protocol requests remain protocol/SDK validation errors.
 
 ## Git workflow
 

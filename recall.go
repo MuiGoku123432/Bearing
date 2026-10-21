@@ -96,6 +96,8 @@ func (s *Store) Recall(ctx context.Context, in RecallInput) (RecallResult, error
 		if in.Query != "" {
 			words := strings.FieldsFunc(in.Query, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) })
 			if len(words) == 0 {
+				// note: same hint as the zero-result warning below; this path never queries.
+				out.Warnings = append(out.Warnings, "No memories matched. Add path or symbol anchors, or recall explicit memory IDs, if you expect a saved record.")
 				return out, nil
 			}
 			if len(words) > 30 {
@@ -141,6 +143,9 @@ func (s *Store) Recall(ctx context.Context, in RecallInput) (RecallResult, error
 	}
 	if out.Omitted > 0 {
 		out.Warnings = append(out.Warnings, "More results exist or exceeded the budget; narrow the query or retrieve IDs explicitly.")
+	}
+	if len(out.Memories) == 0 && out.Omitted == 0 {
+		out.Warnings = append(out.Warnings, "No memories matched. Add path or symbol anchors, or recall explicit memory IDs, if you expect a saved record.")
 	}
 	if len(in.IDs) > 0 && len(out.Memories)+out.Omitted < rowLimit {
 		return out, fail("not_found", "One or more memory IDs were not found.")

@@ -115,6 +115,11 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 		if tool.InputSchema == nil || tool.OutputSchema == nil {
 			t.Fatalf("missing schema: %s", tool.Name)
 		}
+		writes := map[string]bool{"bearing_start": true, "bearing_remember": true, "bearing_checkpoint": true, "bearing_finish": true}
+		marked := tool.Annotations != nil && tool.Annotations.DestructiveHint != nil
+		if writes[tool.Name] != (marked && !*tool.Annotations.DestructiveHint) || (tool.Name == "bearing_git" && marked) {
+			t.Fatalf("destructiveHint on %s: %+v", tool.Name, tool.Annotations)
+		}
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_rules", Arguments: map[string]any{}})
 	if err != nil || result.IsError {

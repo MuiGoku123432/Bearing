@@ -79,7 +79,7 @@ Run this through `recall`. The larger explicit budget retrieves most large docum
 }
 ```
 
-Valid kinds are `decision`, `constraint`, `lesson`, and `preference`. Basis is `user`, `observed`, or `inferred`; it describes provenance rather than assigning an artificial confidence percentage. Scope is `project` or `checkout` within this store. Bearing memory is self-contained; it does not import from or defer to Gortex memory. Revalidate claims about code through Gortex before relying on them.
+Valid kinds are `decision`, `constraint`, `lesson`, and `preference`. Basis is `user`, `observed`, or `inferred`; it describes provenance rather than assigning an artificial confidence percentage. Use `user` only when the user stated or confirmed the claim, and say where in `source`. Scope is `project` or `checkout` within this store. Bearing memory is self-contained; it does not import from or defer to Gortex memory. Revalidate claims about code through Gortex before relying on them.
 
 To replace a claim, add `action: "supersede"`, the old `id`, its `expected_version`, and a `reason`, alongside the replacement fields. The response contains the new memory ID. To retract without replacement:
 
