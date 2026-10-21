@@ -55,6 +55,8 @@ Run the command once for each desired client. A preview reads the project and re
 
 The skill includes the full embedded ENGINEERING.md and WORKFLOW.md. Existing project ENGINEERING.md files are not replaced. Instruction entry points receive one marked Bearing block, shared by clients that use AGENTS.md. Text outside that block stays verbatim. Installation supports the host's instruction mechanisms; it cannot force a model to obey them.
 
+The Bearing entry in the project MCP config contains absolute paths to this machine's executable and checkout. Do not commit that entry for a team; it will not work on another machine. Each engineer runs `bearing install` in their own checkout. If the config file is already shared in Git, keep the Bearing change out of commits or merge it manually from `bearing setup`. The instruction block and skill contain no machine paths and can be shared.
+
 JSON configuration retains unrelated values and other MCP servers. The installer updates Bearing's launch fields while preserving extra settings such as environment variables and timeouts. JSON layout may be reformatted. Codex configuration receives a marked TOML block; other text is preserved byte for byte. Reinstalling updates Bearing-owned content and saves backups before replacement. If the effective content is already current, no client files are rewritten or backed up again.
 
 OpenCode's installed major version is detected automatically. When it is not installed yet, or when selecting a known deployment version explicitly:
