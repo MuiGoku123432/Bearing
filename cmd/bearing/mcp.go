@@ -27,7 +27,7 @@ func newMCPServer(store *bearing.Store) *mcp.Server {
 		out, err := store.Resume(ctx, in.TaskID)
 		return toolResult(out, err)
 	})
-	mcp.AddTool(server, &mcp.Tool{Name: "bearing_remember", Description: "Save, supersede, or retract a durable decision, constraint, lesson, or preference with provenance. Code facts belong in Gortex. Never save secrets."}, func(ctx context.Context, req *mcp.CallToolRequest, in bearing.RememberInput) (*mcp.CallToolResult, toolOutput[bearing.Mutation], error) {
+	mcp.AddTool(server, &mcp.Tool{Name: "bearing_remember", Description: "Save, supersede, or retract a durable decision, constraint, lesson, or preference with provenance. Bearing memory is self-contained. Never save secrets."}, func(ctx context.Context, req *mcp.CallToolRequest, in bearing.RememberInput) (*mcp.CallToolResult, toolOutput[bearing.Mutation], error) {
 		out, err := store.Remember(ctx, in)
 		return toolResult(out, err)
 	})

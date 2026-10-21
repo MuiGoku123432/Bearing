@@ -58,7 +58,7 @@ Supersession creates a replacement and marks the old claim superseded in one tra
 
 Normal recall filters active state and checkout applicability before lexical ranking. Supplied anchors admit matching anchored records and unanchored project context. Natural-language words are quoted as literal FTS5 terms, joined with OR; SQL values are parameterized. English Porter stemming matches word forms such as `retry` and `retrying`. Matching records rank by BM25, then recency and ID. An empty query lists recent applicable memories. Explicit IDs deliberately inspect records regardless of current applicability.
 
-If active Gortex policy requires saving a fact there, save its Gortex reference in checkpoint evidence rather than maintaining a competing editable claim. Bearing does not validate the availability of a remote Gortex reference; the agent must check it.
+Bearing memory is self-contained. It does not read, import, synchronize with, or defer to Gortex memory, and recall works whether or not Gortex is available. If another tool's policy also requires its own record, the agent may write both; the Bearing record stays complete for Bearing. Claims about code still need fresh Gortex evidence before they are relied on.
 
 ## Eight agent operations
 

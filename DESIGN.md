@@ -67,9 +67,7 @@ Keep command parsing, persistence, and MCP handling separate where they have rea
 
 Connect each consumer to both Bearing and Gortex. Bearing records Gortex symbol/file references and the checkout/revision associated with evidence. On resume, the agent uses those references to fetch current evidence through Gortex before changing code. Do not proxy Gortex's whole API through Bearing or duplicate its graph.
 
-Existing Gortex memories remain in Gortex. Bearing owns newly created Bearing records. When relevant prior knowledge exists there, retain its source reference rather than creating independently editable copies. No automatic import, deletion, or bidirectional synchronization is part of the first version.
-
-An active Gortex policy may require saving durable decisions through its own `remember` operation. Honor that policy and let Bearing reference the resulting authoritative record instead of silently suppressing the write or maintaining a competing claim.
+Bearing memory is self-contained. Decisions, constraints, lessons, preferences, and user corrections are saved in Bearing and recalled from Bearing, whether or not Gortex is available or keeps similar notes. Bearing does not import, synchronize with, or defer to Gortex memories, and they are not part of Bearing recall. If an active Gortex policy also requires its own memory write, the agent may do both; the Bearing record stays complete on its own.
 
 If Gortex is unavailable, Bearing's memory and checkpoint commands still work. Code work must follow the active Gortex failure policy and report the missing integration rather than silently replacing graph checks with file searches. Ordinary setup must not start or restart the machine-wide daemon.
 
