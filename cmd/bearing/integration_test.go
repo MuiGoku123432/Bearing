@@ -167,7 +167,8 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 	if err != nil || !result.IsError || !strings.Contains(result.Content[0].(*mcp.TextContent).Text, "conflict") {
 		t.Fatalf("structured conflict missing: %+v %v", result, err)
 	}
-	result, err = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_remember", Arguments: bearing.RememberInput{RequestID: "mcp-memory", Kind: "lesson", Claim: "The CLI and MCP share checkpoints", Basis: "observed", Source: "This integration test"}})
+	// The input schema must let agents omit request_id.
+	result, err = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_remember", Arguments: map[string]any{"kind": "lesson", "claim": "The CLI and MCP share checkpoints", "basis": "observed", "source": "This integration test"}})
 	if err != nil || result.IsError {
 		t.Fatalf("remember: %+v %v", result, err)
 	}

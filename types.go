@@ -108,7 +108,7 @@ type Checkpoint struct {
 }
 
 type StartInput struct {
-	RequestID      string      `json:"request_id"`
+	RequestID      string      `json:"request_id,omitempty"`
 	Kind           string      `json:"kind,omitempty"`
 	Outcome        string      `json:"outcome"`
 	Acceptance     []Criterion `json:"acceptance"`
@@ -117,7 +117,7 @@ type StartInput struct {
 }
 
 type CheckpointInput struct {
-	RequestID       string          `json:"request_id"`
+	RequestID       string          `json:"request_id,omitempty"`
 	TaskID          string          `json:"task_id"`
 	ExpectedVersion int             `json:"expected_version"`
 	Summary         string          `json:"summary"`
@@ -134,7 +134,7 @@ type CheckpointInput struct {
 }
 
 type FinishInput struct {
-	RequestID         string             `json:"request_id"`
+	RequestID         string             `json:"request_id,omitempty"`
 	TaskID            string             `json:"task_id"`
 	ExpectedVersion   int                `json:"expected_version"`
 	Summary           string             `json:"summary"`

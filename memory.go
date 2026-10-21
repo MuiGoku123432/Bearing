@@ -30,7 +30,7 @@ type Memory struct {
 }
 
 type RememberInput struct {
-	RequestID       string   `json:"request_id"`
+	RequestID       string   `json:"request_id,omitempty"`
 	Action          string   `json:"action,omitempty"`
 	ID              string   `json:"id,omitempty"`
 	ExpectedVersion int      `json:"expected_version,omitempty"`

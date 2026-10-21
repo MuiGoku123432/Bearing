@@ -66,12 +66,12 @@ MCP names use the `bearing_` prefix. Both interfaces call the same domain operat
 
 | Operation | Inputs | Result |
 | --- | --- | --- |
-| `start` | `request_id`, outcome, acceptance; optional kind, input document IDs, related task | Mutation receipt plus current context |
+| `start` | Outcome, acceptance; optional request ID, kind, input document IDs, related task | Mutation receipt plus current context |
 | `resume` | Optional task ID | Current task/context, candidates, or empty state |
-| `remember` | Request ID and save/supersede/retract fields | Memory mutation receipt |
+| `remember` | Save/supersede/retract fields; optional request ID | Memory mutation receipt |
 | `recall` | Query or memory IDs, or document IDs; optional anchors, limit, byte budget | Records, omissions, warnings, policy ID |
-| `checkpoint` | Request ID, task ID, expected version, summary, next action; optional state/evidence/documents/task update | Task/checkpoint/document IDs and new task version |
-| `finish` | Request ID, task ID, expected version, summary, acceptance results, verification, review; optional documents/limitations | Completed task and final checkpoint receipt |
+| `checkpoint` | Task ID, expected version, summary, next action; optional request ID, state/evidence/documents/task update | Task/checkpoint/document IDs and new task version |
+| `finish` | Task ID, expected version, summary, acceptance results, verification, review; optional request ID, documents/limitations | Completed task and final checkpoint receipt |
 | `git` | Operation and its fields; expected HEAD/branch for writes; expected index tree for commits | Repository state, branches/worktrees, staged summary, operation result and warnings |
 | `rules` | No input | Complete engineering policy/workflow and identities |
 
@@ -103,7 +103,7 @@ Tables are `store_meta`, `tasks`, `checkpoints`, `documents`, `memories`, `memor
 
 Use one connection per process, foreign keys, WAL, FULL synchronization, two-second lock waits, and five-second ordinary operation contexts. Connection-local settings are applied through the driver DSN on every connection. Schema initialization is transactional; newer schema versions are rejected before persistent journal settings change. The pinned build must use an SQLite release containing the required WAL fix.
 
-Every task and memory mutation and its receipt commit together in SQLite. Receipt lookup precedes current-version validation and document reopening. Identical operation/input/request ID replays the original mutation result; different input under an existing ID conflicts. A new write with an old expected version conflicts and returns the current version. Captured timestamps, context, and generated IDs are outside the input digest. Read context attached to a replay may reflect current state.
+Every task and memory mutation and its receipt commit together in SQLite. Receipt lookup precedes current-version validation and document reopening. Identical operation/input/request ID replays the original mutation result; different input under an existing ID conflicts. A new write with an old expected version conflicts and returns the current version. Captured timestamps, context, generated IDs, and the request ID itself are outside the input digest. An omitted request ID is generated and returned in the receipt or `outcome_unknown` error; retrying the same input with that ID replays. Read context attached to a replay may reflect current state.
 
 Errors contain stable `code`, `message`, `retryable`, and optional request/current-version fields. Current codes include `invalid_input`, `not_initialized`, `not_found`, `conflict`, `busy`, `unsupported_schema`, `io_error`, and `outcome_unknown`. Incomplete completion evidence uses `invalid_input` with the failed requirement. Ambiguity returns candidates. Retry an uncertain SQLite mutation with the same request ID; cancellation alone does not establish that nothing was saved. Git operations instead require inspection after an uncertain result.
 
@@ -133,7 +133,7 @@ bearing backup --out /path/backup.db
 bearing restore --input /path/backup.db --repo /empty/checkout
 ```
 
-Put flags before positional IDs. JSON input rejects unknown fields, non-object input, and trailing JSON. `--input -` reads stdin. For task and memory writes, CLI can generate a missing request ID and prints it to stderr before writing; automation should supply and retain its own IDs. Git requests use state preconditions instead of request IDs. Exit codes: 0 success, 2 invalid input/missing state or record, 3 conflict, 4 busy/uncertain outcome, 1 other failures. MCP stdout is reserved for protocol traffic.
+Put flags before positional IDs. JSON input rejects unknown fields, non-object input, and trailing JSON. `--input -` reads stdin. For task and memory writes, CLI and MCP generate a missing request ID. The CLI prints it to stderr before writing; MCP returns it with the result. Automation that must retry safely after a lost response should supply and retain its own IDs. Git requests use state preconditions instead of request IDs. Exit codes: 0 success, 2 invalid input/missing state or record, 3 conflict, 4 busy/uncertain outcome, 1 other failures. MCP stdout is reserved for protocol traffic.
 
 Rules/version/help work without state. Init creates only the state directory, its self-ignoring `.bearing/.gitignore`, and the database; it does not change tracked files. Setup requires a Git checkout and writes a new directory with configuration/instruction fragments, a skill, canonical policy/workflow, and application instructions. It never overwrites existing client settings or configures/tracks Gortex automatically.
 

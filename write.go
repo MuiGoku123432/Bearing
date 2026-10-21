@@ -14,14 +14,28 @@ import (
 func (s *Store) write(ctx context.Context, id, operation string, input any, prepare func() error, apply func(*sql.Tx) (Mutation, error)) (Mutation, error) {
 	ctx, cancel := operationContext(ctx)
 	defer cancel()
+	if id == "" {
+		// The receipt returns the generated ID, so an uncertain result can still be retried.
+		id = NewID()
+	}
 	if strings.TrimSpace(id) == "" || len(id) > 128 {
-		return Mutation{}, fail("invalid_input", "Supply a stable request_id of at most 128 bytes.")
+		return Mutation{}, fail("invalid_input", "Use a request_id of at most 128 bytes, or omit it.")
 	}
 	if err := inputSize(input, 65536); err != nil {
 		return Mutation{}, err
 	}
 	data, err := json.Marshal(input)
 	if err != nil {
+		return Mutation{}, err
+	}
+	// The request ID is the receipt key; the digest covers only the requested change,
+	// so retrying with a generated ID matches the original omitted-ID request.
+	var fields map[string]json.RawMessage
+	if err = json.Unmarshal(data, &fields); err != nil {
+		return Mutation{}, err
+	}
+	delete(fields, "request_id")
+	if data, err = json.Marshal(fields); err != nil {
 		return Mutation{}, err
 	}
 	digest := fmt.Sprintf("%x", sha256.Sum256(data))
@@ -73,7 +87,7 @@ func (s *Store) write(ctx context.Context, id, operation string, input any, prep
 
 func receipt(id, op, digest, savedOp, savedDigest, saved string) (Mutation, error) {
 	if op != savedOp || digest != savedDigest {
-		return Mutation{}, fail("conflict", "This request ID was already used with different input.")
+		return Mutation{}, fail("conflict", "This request_id was already used for a different write. Use a new request_id for a new action, or omit it.")
 	}
 	var result Mutation
 	if err := json.Unmarshal([]byte(saved), &result); err != nil {

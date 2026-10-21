@@ -87,6 +87,21 @@ func TestRestartRetryAndConflict(t *testing.T) {
 	}
 }
 
+func TestOmittedRequestIDCanBeReplayed(t *testing.T) {
+	ctx := context.Background()
+	s := testStore(t)
+	input := StartInput{Outcome: "Write without a caller ID", Acceptance: []Criterion{{Description: "The write succeeds"}}}
+	first, err := s.Start(ctx, input)
+	if err != nil || first.Mutation.RequestID == "" {
+		t.Fatalf("omitted request ID: %+v %v", first.Mutation, err)
+	}
+	input.RequestID = first.Mutation.RequestID
+	retried, err := s.Start(ctx, input)
+	if err != nil || !retried.Mutation.Replayed || retried.Mutation.ID != first.Mutation.ID {
+		t.Fatalf("generated ID did not replay: %+v %v", retried.Mutation, err)
+	}
+}
+
 func TestCompetingConnections(t *testing.T) {
 	ctx := context.Background()
 	s := testStore(t)
