@@ -162,6 +162,18 @@ Run on 21 October 2026 for the [session review trial](11-session-review-trial.md
 
 Codex cells were not run; Codex CLI was not installed on the trial machine. The raw outputs live outside this repository and may be removed with the disposable trial.
 
+## Project onboarding
+
+Reviewed on 22 October 2026 for [project onboarding](12-project-onboarding.md).
+
+| ID | Source | Inspection and use |
+| --- | --- | --- |
+| O01 | [Claude Code: How Claude remembers your project](https://code.claude.com/docs/en/memory) | Full text; CLAUDE.md guidance, `/init`, auto memory skips derivable facts, `/doctor` trims |
+| O03 | [Agent Skills specification](https://agentskills.io/specification) | Full text; description field, progressive disclosure, size guidance |
+| O04 | `gortex track --help` (local, installed Gortex) | Tracking adds the repository to Gortex's global config |
+
+The Codex `AGENTS.md` guide returned HTTP 403 and was not used.
+
 ## Local evidence and user requirements
 
 | Evidence | Observation |
