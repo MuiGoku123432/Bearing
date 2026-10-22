@@ -81,6 +81,8 @@ opencode mcp list
 
 Use the command for your selected client. Confirm that both Bearing and Gortex are available. Ask the agent to resume or start work using Bearing. Check that Gortex reports coverage for the checkout before changing source. A CLI check such as `bearing status --repo /path/to/project` verifies the local store but does not verify the client's MCP connection.
 
+Then ask the agent to onboard the repository: "Onboard this repo into Bearing." It checks Gortex coverage, runs the build and tests, asks a few questions, and saves the project's verified commands, rules, and decisions as Bearing memory. See the Onboard section of [WORKFLOW.md](WORKFLOW.md).
+
 ## When the installer stops
 
 The installer validates all intended client files before initializing the store. It refuses symlinks, non-regular files, files larger than 1 MiB, malformed JSON, duplicate JSON keys, damaged Bearing markers, and a custom skill occupying the target path.

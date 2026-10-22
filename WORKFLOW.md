@@ -6,7 +6,23 @@ Use Bearing with the current user's instructions, the complete engineering rules
 
 For work that needs durable progress, start a task or resume its ID. Read the full policy returned in the active context. State an outcome and its acceptance criteria. Each criterion is an observable outcome, not a step. Use the fewest criteria that prove the outcome, and give each one way to check it. EARS ("When X, the system shall Y") or Given/When/Then wording is optional. Small fixes can go from start to finish. Questions and terminal Gortex localization do not need task ceremony.
 
+For a repository new to Bearing, onboard it once first.
+
 Choose research, spec, plan, or build. A later task links the document IDs produced by earlier work; no phase is mandatory when the request does not need it.
+
+## Onboard
+
+Use when a repository is new to Bearing or the user asks to onboard it. No task is needed; the result is project memory.
+
+1. Call `bearing_resume`. If Bearing tools are missing, tell the user to run `bearing install --host <host> --repo <path>` and restart the client.
+2. Check that Gortex covers this checkout. If it does not, ask the user before running `gortex track <path>`; it changes Gortex's global configuration.
+3. Recall existing project memories so you do not save duplicates.
+4. Read the instruction files (`AGENTS.md`, `CLAUDE.md`), README, contributing guide, and build files. Run the build and test commands you find.
+5. Ask only questions that change future work: the trunk branch, areas not to touch, required checks, and the tracker if the user will plan backlogs.
+6. Save about ten memories at most, with `scope: project`. Save only what code and Gortex cannot tell you: verified build and test commands, required checks, trunk and branch rules, protected areas, team decisions, and preferences. Use `basis: observed` with the file or command as `source` for what you saw work, and `basis: user` for what the user said. Do not save a codebase summary, file layouts, or dependency lists.
+7. Resume again to confirm the memories surface. Report what you saved, what you could not verify, and anything the user must do.
+
+Never save secrets, tokens, connection strings, customer data, or production records.
 
 ## Research
 
