@@ -60,3 +60,36 @@ func TestUnicodeTaskCandidates(t *testing.T) {
 		t.Fatalf("candidate selection: %v", err)
 	}
 }
+
+func TestPlanContextKeepsPolicyWithinBudget(t *testing.T) {
+	ctx := context.Background()
+	s := testStore(t)
+	outcome := strings.Repeat("o", 2000)
+	acceptance := []Criterion{}
+	for i := 0; i < 30; i++ {
+		acceptance = append(acceptance, Criterion{Description: strings.Repeat("c", 400)})
+	}
+	started, err := s.Start(ctx, StartInput{RequestID: NewID(), Kind: "plan", Outcome: outcome, Acceptance: acceptance})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Fill the checkpoint to just under the 16384-byte input limit.
+	cp := CheckpointInput{RequestID: NewID(), TaskID: started.Mutation.ID, ExpectedVersion: 1, Summary: "Drafted the plan", NextAction: "Ask the user to approve the plan"}
+	for data, _ := json.Marshal(cp); len(data) < 16000; data, _ = json.Marshal(cp) {
+		cp.Steps = append(cp.Steps, strings.Repeat("s", 300))
+	}
+	if _, err := s.Checkpoint(ctx, cp); err != nil {
+		t.Fatal(err)
+	}
+	resumed, err := s.Resume(ctx, started.Mutation.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(resumed)
+	if err != nil || len(data) > 32000 {
+		t.Fatalf("plan context budget exceeded: %d %v", len(data), err)
+	}
+	if resumed.Policy.Text != Rules().Text || resumed.Policy.Planning != Rules().Planning || resumed.Task.Outcome != outcome || len(resumed.Task.Acceptance) != 30 {
+		t.Fatal("plan context trimming lost policy, planning standards, or requirements")
+	}
+}

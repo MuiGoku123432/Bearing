@@ -84,6 +84,84 @@ No selected driver's embedded engine or platform matrix was verified by building
 
 Use the installed client's documentation/version contract when generating configuration. In particular, newer OpenCode v2 documentation should not be assumed to describe the observed 1.x installation.
 
+## Backlog planning practice
+
+Reviewed on 21 October 2026 for [backlog planning](09-backlog-planning.md).
+
+| ID | Primary source | Inspection and use |
+| --- | --- | --- |
+| B01 | [The 2020 Scrum Guide](https://scrumguides.org/scrum-guide.html) | Full text; refinement, sizing ownership, Definition of Done, empirical forecasting |
+| B02 | [Jeffries: Card, Conversation, Confirmation](https://ronjeffries.com/xprog/articles/expcardconversationconfirmation) | Full text; stories as tokens confirmed by acceptance tests |
+| B03 | [Wake: INVEST in Good Stories, and SMART Tasks](https://xp123.com/invest-in-good-stories-and-smart-tasks/) | Full text; story and task quality checks, spikes |
+| B04 | [Humanizing Work Guide to Splitting User Stories](https://www.humanizingwork.com/the-humanizing-work-guide-to-splitting-user-stories/) | Full text; vertical slices, nine patterns, meta-pattern, split evaluation, Cynefin |
+| B05 | [Cohn: The Dangers of a Definition of Ready](https://mountaingoatsoftware.com/blog/the-dangers-of-a-definition-of-ready) | Full text; guidelines over rules, stage-gate risk |
+| B06 | [Jeffries: Story Points Revisited](https://ronjeffries.com/articles/019-01ff/story-points/Index.html) | Full text; origin and misuse of points, slicing instead |
+| B07 | [Shepperd, Mair, Jørgensen: de-biasing anchoring](https://arxiv.org/abs/1804.03919v1) | Abstract-level; anchoring effect and partial mitigation |
+| B08 | [ProKanban: story points with Monte Carlo](https://prokanban.org/blog/story-points-with-mcs) | Practitioner argument; no controlled comparison |
+| B09 | [Ronanki et al.: ChatGPT for user story quality evaluation](https://arxiv.org/abs/2306.12132) | Abstract-level; QUS alignment, best-of-three |
+| B10 | [Search-based optimisation of LLM shots for story points](https://arxiv.org/abs/2403.08430) | Full text; small GPT-4 study, zero-shot below mean/median baselines |
+| B11 | [Story point estimation using transformer-based agents](https://eceasst.org/index.php/eceasst/article/view/2685) | Abstract-level; dataset accuracy claims, not adopted as targets |
+| B12 | [Humanizing Work: "Claude, Make Me a Backlog"](https://www.humanizingwork.com/claude-make-me-a-backlog/) | Full text; AI-generated backlog failure mode and recommended uses |
+| B13 | [Better Gherkin with AI](https://github.com/HumanizingWork/better-gherkin-with-ai) | Referenced from B12; not inspected |
+
+## Tracker references
+
+| ID | Primary source | Inspection and use |
+| --- | --- | --- |
+| T01 | [Azure Boards default processes](https://learn.microsoft.com/en-us/azure/devops/boards/work-items/guidance/choose-process?view=azure-devops) | Full text; types, hierarchy, task estimate fields, process immutability |
+| T02 | [Azure DevOps team velocity](https://learn.microsoft.com/en-us/azure/devops/report/dashboards/team-velocity?view=azure-devops) | Search excerpts; Story Points, Effort, Size in velocity |
+| T03 | [GitHub CLI: sub-issues, types, and dependencies](https://github.blog/changelog/2026-06-10-manage-sub-issues-types-and-dependencies-from-github-cli/) | Full text; `gh` 2.94.0 flags |
+| T04 | [GitHub issue fields GA](https://github.blog/changelog/2026-07-02-issue-fields-are-now-generally-available) | Full text; default fields and MCP access |
+| T05 | [GitHub agent automation controls](https://github.blog/changelog/2026-07-23-agent-automation-controls-in-github-issues-in-public-preview/) | Full text; suggestions, confidence, rationale; not a security control |
+| T06 | [Remote Azure DevOps MCP Server](https://learn.microsoft.com/en-us/azure/devops/mcp-server/remote-mcp-server?view=azure-devops) | Full text; tools, toolset/read-only headers, auth, host support, OAuth scopes |
+| T07 | [microsoft/azure-devops-mcp](https://github.com/microsoft/azure-devops-mcp) and [TOOLSET.md](https://github.com/microsoft/azure-devops-mcp/blob/main/docs/TOOLSET.md) | README and toolset; local domains, consolidation warning |
+| T08 | [github/github-mcp-server](https://github.com/github/github-mcp-server) | README sections on toolsets, read-only, issue, sub-issue, and project tools |
+| T09 | [Invariant Labs: GitHub MCP exploited](https://invariantlabs.ai/blog/mcp-github-vulnerability) | Search excerpts; toxic agent flow and mitigations |
+| T10 | [GitHub MCP tool configuration and Lockdown mode](https://github.blog/changelog/2025-12-10-the-github-mcp-server-adds-support-for-tool-specific-configuration-and-more) | Full text; sanitization, lockdown, `X-MCP-Tools` |
+
+Tracker tool names and parameters were read from documentation on this date; no live tracker calls were made.
+
+## Session review
+
+Reviewed on 21 October 2026 for [multi-angle session review](10-session-review.md).
+
+| ID | Primary source | Inspection and use |
+| --- | --- | --- |
+| R01 | [Basili et al.: perspective-based reading](https://www.cs.umd.edu/users/basili/publications/technical/T136.pdf) and [replication](https://core.ac.uk/works/31885195) | Search excerpts; perspectives versus ad hoc reading of requirements |
+| R02 | [Bacchelli and Bird: Expectations, Outcomes, and Challenges of Modern Code Review](https://www.microsoft.com/en-us/research/?p=164195) | Abstract-level; defects versus understanding and knowledge transfer |
+| R03 | [Huang et al.: LLMs Cannot Self-Correct Reasoning Yet](https://arxiv.org/abs/2310.01798) | Abstract; intrinsic self-correction without external feedback |
+| R04 | [Smit et al.: Should we be going MAD?](https://proceedings.mlr.press/v235/smit24a.html) | Search excerpts; debate versus self-consistency and ensembling |
+| R05 | [Zhang et al.: Stop Overvaluing Multi-Agent Debate](https://arxiv.org/abs/2502.08788v3) | Abstract; 5 methods, 9 benchmarks, model heterogeneity |
+| R06 | [Wataoka et al.: Self-Preference Bias in LLM-as-a-Judge](https://arxiv.org/abs/2410.21819) | Abstract-level; self-preference linked to perplexity |
+| R07 | [Anthropic: How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system) | Full text; token cost, effort scaling, delegation guidance |
+| R08 | [Cognition: Don't Build Multi-Agents](https://cognition.com/blog/dont-build-multi-agents) | Full text; shared context and conflicting decisions |
+| R09 | [Claude Code `code-review` plugin command](https://github.com/anthropics/claude-code/blob/main/plugins/code-review/commands/code-review.md) | Full text; parallel reviewers, validation, high-signal filter |
+
+## Host review support
+
+| ID | Primary source | Inspection and use |
+| --- | --- | --- |
+| H01 | [Claude Code hooks](https://code.claude.com/docs/en/hooks) | Lifecycle and decision-control sections; `Stop` versus `SessionEnd` |
+| H02 | [Claude Code subagents](https://code.claude.com/docs/en/sub-agents) | Overview and configuration sections; own context, tools, locations |
+| H03 | [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents) | Full text; triggering, inheritance, custom agents, no per-agent sandbox |
+| H04 | [Codex hooks](https://learn.chatgpt.com/docs/hooks) | Full text; `Stop` continuation, `SessionEnd` timeout and advisory output |
+| H05 | [OpenCode agents](https://opencode.ai/docs/agents/) | Full text; subagents, permissions, model per agent |
+| H06 | [OpenCode plugins](https://opencode.ai/docs/plugins/) | Search excerpts; `session.idle` event |
+
+## Session review trial
+
+Run on 21 October 2026 for the [session review trial](11-session-review-trial.md). These are local observations, not published sources.
+
+| ID | Source | Inspection and use |
+| --- | --- | --- |
+| X01 | Trial repository `~/repos/mine/GoApps/bearing-review-trial` (synthetic data, 7 task branches, Bearing tasks with recorded `go test` output) | Seeded defects and clean control under review |
+| X02 | Trial kit `~/repos/mine/GoApps/bearing-review-trial-kit`: `make_task.py`, `tasks/*.json`, `bearing-review-panel/SKILL.md`, `run.sh` | Exact task content, panel skill, and run procedure |
+| X03 | Raw run outputs `results.tsv` and `runs/*-claude-*.json` in the kit | Findings, `modelUsage` tokens, `total_cost_usd`, permission denials, wall time per cell |
+| X04 | Claude Code 2.1.299 (`claude --version`), model `claude-opus-5-5`, `claude -p --output-format json` | Host and model for all 14 measured cells |
+| X05 | `git status --porcelain` after each cell | Whether any review edited files |
+
+Codex cells were not run; Codex CLI was not installed on the trial machine. The raw outputs live outside this repository and may be removed with the disposable trial.
+
 ## Local evidence and user requirements
 
 | Evidence | Observation |

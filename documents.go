@@ -34,8 +34,8 @@ func (s *Store) captureDocuments(inputs []DocumentInput) ([]Document, error) {
 		if len(in.Path) > 512 || !filepath.IsLocal(in.Path) || strings.ToLower(filepath.Ext(in.Path)) != ".md" || seen[in.Path] {
 			return nil, fail("invalid_input", "Document paths must be unique Markdown files inside the checkout.")
 		}
-		if (in.Kind != "research" && in.Kind != "spec") || strings.TrimSpace(in.Summary) == "" {
-			return nil, fail("invalid_input", "Each document needs a research or spec kind and a summary.")
+		if (in.Kind != "research" && in.Kind != "spec" && in.Kind != "plan") || strings.TrimSpace(in.Summary) == "" {
+			return nil, fail("invalid_input", "Each document needs a research, spec, or plan kind and a summary.")
 		}
 		seen[in.Path] = true
 		file, err := root.Open(in.Path)

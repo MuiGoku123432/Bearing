@@ -128,6 +128,10 @@ func TestStdioMCPAndCLIShareState(t *testing.T) {
 	if !strings.Contains(result.Content[0].(*mcp.TextContent).Text, "Rule of three") {
 		t.Fatal("engineering policy absent")
 	}
+	var mcpRules struct{ Result bearing.Policy }
+	if raw, _ := json.Marshal(result.StructuredContent); json.Unmarshal(raw, &mcpRules) != nil || mcpRules.Result.Planning != bearing.Rules().Planning || mcpRules.Result.PlanningID != bearing.Rules().PlanningID {
+		t.Fatal("bearing_rules must return the planning standards and planning_id")
+	}
 	arguments := map[string]any{"request_id": "mcp-start", "outcome": "Carry this task between clients", "acceptance": []map[string]any{{"description": "CLI can resume the task"}}}
 	result, err = session.CallTool(ctx, &mcp.CallToolParams{Name: "bearing_start", Arguments: arguments})
 	if err != nil || result.IsError {
@@ -222,8 +226,13 @@ func TestCLIInputErrorsAndSetup(t *testing.T) {
 	if err := run(ctx, []string{"version", "--json"}, strings.NewReader(""), &output, &errors); err != nil || json.Unmarshal(output.Bytes(), &version) != nil {
 		t.Fatalf("version: %s %v", output.String(), err)
 	}
-	if version["version"] != bearing.Version() || version["policy_id"] != bearing.Rules().ID || version["workflow_id"] != bearing.Rules().WorkflowID {
+	if version["version"] != bearing.Version() || version["policy_id"] != bearing.Rules().ID || version["workflow_id"] != bearing.Rules().WorkflowID || version["planning_id"] != bearing.Rules().PlanningID {
 		t.Fatalf("version report: %v", version)
+	}
+	output.Reset()
+	var cliRules bearing.Policy
+	if err := run(ctx, []string{"rules", "--json"}, strings.NewReader(""), &output, &errors); err != nil || json.Unmarshal(output.Bytes(), &cliRules) != nil || cliRules.Planning != bearing.Rules().Planning || cliRules.PlanningID != bearing.Rules().PlanningID {
+		t.Fatalf("rules --json must return the planning standards: %v", err)
 	}
 	for _, host := range []string{"codex", "claude", "opencode"} {
 		destination := filepath.Join(t.TempDir(), host)

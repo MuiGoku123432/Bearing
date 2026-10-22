@@ -124,13 +124,16 @@ func (s *Store) saveProgress(ctx context.Context, in CheckpointInput, finish *Fi
 					}
 				}
 				if !hasDocument {
-					return Mutation{}, fail("invalid_input", "Finishing research or a spec requires saving its final Markdown document in this request.")
+					return Mutation{}, fail("invalid_input", "Finishing research, a spec, or a plan requires saving its final Markdown document in this request.")
 				}
 			}
 			if testFiles, err = changedTestFiles(ctx, repo.Path, task.CreatedContext.Tree, repo.Tree); err != nil {
 				return Mutation{}, err
 			}
 			cp.Verification, cp.Review, cp.Limitations = finish.Verification, &Review{PolicyID: Rules().ID, ReviewInput: finish.Review}, finish.Limitations
+			if task.Kind == "plan" {
+				cp.Review.PlanningID = Rules().PlanningID
+			}
 			in.Status = "completed"
 		}
 		data, err := json.Marshal(cp)

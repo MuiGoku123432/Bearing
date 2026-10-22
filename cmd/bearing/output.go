@@ -14,7 +14,7 @@ func printHuman(w io.Writer, value any) error {
 		_, err := fmt.Fprintln(w, out)
 		return err
 	case bearing.Policy:
-		_, err := fmt.Fprintf(w, "%s\n\n%s\n\nPolicy: %s\nWorkflow: %s\n", out.Text, out.Workflow, out.ID, out.WorkflowID)
+		_, err := fmt.Fprintf(w, "%s\n\n%s\n\n%s\n\nPolicy: %s\nWorkflow: %s\nPlanning: %s\n", out.Text, out.Workflow, out.Planning, out.ID, out.WorkflowID, out.PlanningID)
 		return err
 	case bearing.Mutation:
 		_, err := fmt.Fprintf(w, "%s: %s (version %d)\nRequest: %s\n", out.Status, out.ID, out.Version, out.RequestID)

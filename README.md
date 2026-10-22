@@ -1,6 +1,6 @@
 # Bearing
 
-Bearing helps coding agents keep their direction across sessions. It carries the task, engineering rules, useful decisions, research, specs, and next action between Codex, Claude Code, and OpenCode.
+Bearing helps coding agents keep their direction across sessions. It carries the task, engineering rules, useful decisions, research, specs, backlog plans, and next action between Codex, Claude Code, and OpenCode.
 
 It is a local Go CLI and stdio MCP server. Gortex supplies code understanding and source changes; the host agent supplies the model and runs verification. Bearing stores durable state in SQLite and checks the evidence submitted when a task finishes.
 
@@ -33,7 +33,7 @@ Start a task with a JSON file or stdin:
 JSON
 ```
 
-Save the returned task ID and version. Use `bearing checkpoint` after useful progress, then `bearing resume TASK_ID` in a fresh session. Put flags before positional IDs. [CLI examples](CLI_EXAMPLES.md) show research, specs, memory, checkpoint, and completion requests.
+Save the returned task ID and version. Use `bearing checkpoint` after useful progress, then `bearing resume TASK_ID` in a fresh session. Put flags before positional IDs. [CLI examples](CLI_EXAMPLES.md) show research, specs, plans, memory, checkpoint, and completion requests.
 
 ## Install and connect your coding agent
 
@@ -69,7 +69,7 @@ The server command is `bearing mcp --repo /absolute/path/to/checkout`. It expose
 
 | Tool | Purpose |
 | --- | --- |
-| `bearing_start` | Start a research, spec, or build task with acceptance criteria |
+| `bearing_start` | Start a research, spec, plan, or build task with acceptance criteria |
 | `bearing_resume` | Recover requirements, rules, progress, documents, and relevant memory |
 | `bearing_remember` | Save, supersede, or retract an attributed durable claim |
 | `bearing_recall` | Search memory or retrieve exact saved document versions |
@@ -100,11 +100,13 @@ Use the same task loop for each kind. A small fix can start directly as a build 
 3. Start `kind: "spec"` with those IDs in `input_documents`. The agent turns the findings into scope, behavior, constraints, and verifiable acceptance criteria.
 4. Start `kind: "build"` with the saved spec IDs. Research lineage remains attached. The agent uses Gortex to inspect and change code, verifies the requirements, and checkpoints progress.
 
-Research and spec tasks must save their final document when finishing. Resume returns document metadata; recall returns the stored body on request. If a file changes or disappears, Bearing warns and keeps the captured version available. It does not silently replace accepted requirements.
+To groom a tracker backlog, start `kind: "plan"`. Resume then also returns the [planning standards](PLANNING.md). The agent writes a plan document (default `docs/plans/<slug>.md`), writes to Azure Boards or GitHub only after the user approves it, and records created item IDs as evidence. Bearing does not call the tracker; see [tracker access](INSTALL.md#tracker-access).
+
+Research, spec, and plan tasks must save their final document when finishing. Resume returns document metadata; recall returns the stored body on request. If a file changes or disappears, Bearing warns and keeps the captured version available. It does not silently replace accepted requirements.
 
 ## Engineering rules are built in
 
-[ENGINEERING.md](ENGINEERING.md) is embedded verbatim and identified by SHA-256. Start and resume return the full policy. The installed skill carries only the workflow and points to start/resume for the policy. The [workflow](WORKFLOW.md) keeps investigation, implementation, verification, and handoff direct.
+[ENGINEERING.md](ENGINEERING.md) and [PLANNING.md](PLANNING.md) are embedded verbatim and identified by SHA-256. Start and resume return the full policy. The installed skill carries only the workflow and points to start/resume for the policy. The [workflow](WORKFLOW.md) keeps investigation, implementation, verification, and handoff direct.
 
 Finish requires passing acceptance evidence and the five self-review checks: single-use code, reuse, necessity, conventions, and minimality. Evidence records its source and outcome; Bearing records the checkout context and a working-tree hash itself, rejects passing evidence reused from a different tree, and lists changed test files in the finish receipt. Bearing validates these records; the agent and its host remain responsible for actually performing the work.
 

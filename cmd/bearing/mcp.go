@@ -41,7 +41,7 @@ func newMCPServer(store *bearing.Store) *mcp.Server {
 		out, err := store.Checkpoint(ctx, in)
 		return toolResult(out, err)
 	})
-	mcp.AddTool(server, &mcp.Tool{Name: "bearing_finish", Description: "Finish when every acceptance criterion is listed in acceptance_ids of at least one passing verification, and review checks single_use, reuse, necessity, conventions, minimality pass. Bearing records the policy ID. Research/spec tasks must save their final document. Evidence is agent-reported, not independently certified.", Annotations: &mcp.ToolAnnotations{DestructiveHint: new(bool)}}, func(ctx context.Context, req *mcp.CallToolRequest, in bearing.FinishInput) (*mcp.CallToolResult, toolOutput[bearing.Mutation], error) {
+	mcp.AddTool(server, &mcp.Tool{Name: "bearing_finish", Description: "Finish when every acceptance criterion is listed in acceptance_ids of at least one passing verification, and review checks single_use, reuse, necessity, conventions, minimality pass. Bearing records the policy ID. Research/spec/plan tasks must save their final document of that kind. Evidence is agent-reported, not independently certified.", Annotations: &mcp.ToolAnnotations{DestructiveHint: new(bool)}}, func(ctx context.Context, req *mcp.CallToolRequest, in bearing.FinishInput) (*mcp.CallToolResult, toolOutput[bearing.Mutation], error) {
 		out, err := store.Finish(ctx, in)
 		return toolResult(out, err)
 	})
@@ -49,7 +49,7 @@ func newMCPServer(store *bearing.Store) *mcp.Server {
 		out, err := store.Git(ctx, in)
 		return toolResult(out, err)
 	})
-	mcp.AddTool(server, &mcp.Tool{Name: "bearing_rules", Description: "Read full built-in engineering standards and the research/spec/build workflow.", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true}}, func(ctx context.Context, req *mcp.CallToolRequest, in struct{}) (*mcp.CallToolResult, toolOutput[bearing.Policy], error) {
+	mcp.AddTool(server, &mcp.Tool{Name: "bearing_rules", Description: "Read full built-in engineering standards, planning standards, and the research/spec/plan/build workflow.", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true}}, func(ctx context.Context, req *mcp.CallToolRequest, in struct{}) (*mcp.CallToolResult, toolOutput[bearing.Policy], error) {
 		return toolResult(bearing.Rules(), nil)
 	})
 	return server
